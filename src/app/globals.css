@@ -1,26 +1,553 @@
 @import "tailwindcss";
 
+@theme {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --animate-aurora: aurora 60s linear infinite;
+
+  @keyframes aurora {
+    from {
+      background-position: 50% 50%, 50% 50%;
+    }
+
+    to {
+      background-position: 350% 50%, 350% 50%;
+    }
+  }
+
+  /* Meteor Effect */
+  --animate-meteor-effect: meteor 5s linear infinite;
+
+  @keyframes meteor {
+    0% {
+      transform: rotate(215deg) translateX(0);
+      opacity: 1;
+    }
+
+    70% {
+      opacity: 1;
+    }
+
+    100% {
+      transform: rotate(215deg) translateX(-500px);
+      opacity: 0;
+    }
+  }
+
+
+
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Enforce Solaris Dark Theme by default */
+  --background: 0 0% 4%;
+  /* #0a0a0a Void Black */
+  --foreground: 0 0% 98%;
+
+  --card: 0 0% 7%;
+  /* #121212 Matte */
+  --card-foreground: 0 0% 98%;
+
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 98%;
+
+  /* Primary: Neon Pink #F0ABFC / #ff007f range */
+  --primary: 310 90% 60%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary: Neon Cyan/Green #00f3ff range */
+  --secondary: 160 100% 50%;
+  --secondary-foreground: 0 0% 10%;
+
+  --muted: 0 0% 15%;
+  --muted-foreground: 240 5% 65%;
+
+  --accent: 0 0% 15%;
+  --accent-foreground: 0 0% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 310 90% 60%;
+  --radius: 0.75rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  /* Same as root to ensure consistency */
+  --background: 0 0% 4%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 310 90% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 160 100% 50%;
+  --secondary-foreground: 0 0% 10%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 240 5% 65%;
+  --accent: 0 0% 15%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 310 90% 60%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.light {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --primary: 310 90% 60%;
+  /* Keep Solaris Pink branding even in light mode */
+  --primary-foreground: 0 0% 98%;
+  --secondary: 160 100% 40%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 310 90% 60%;
+}
+
+.neon {
+  --background: 260 50% 5%;
+  /* Deep Purple Void */
+  --foreground: 280 100% 95%;
+  --card: 260 50% 8%;
+  --card-foreground: 280 100% 95%;
+  --popover: 260 50% 8%;
+  --popover-foreground: 280 100% 95%;
+  --primary: 320 100% 60%;
+  /* Hot Pink */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 190 100% 50%;
+  /* Cyan */
+  --secondary-foreground: 0 0% 0%;
+  --muted: 260 30% 15%;
+  --muted-foreground: 260 20% 70%;
+  --accent: 260 30% 20%;
+  --accent-foreground: 280 100% 95%;
+  --destructive: 0 100% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 260 30% 20%;
+  --input: 260 30% 20%;
+  /* Aceternity Variables */
+  --sky-500: 199 89% 48%;
+  --blue-500: 217 91% 60%;
+  --indigo-300: 226 100% 84%;
+  --blue-300: 213 94% 80%;
+  --violet-200: 255 100% 90%;
+  --blue-400: 213 94% 68%;
+  --white: 0 0% 100%;
+  --black: 0 0% 0%;
+  --transparent: 0 0% 0% / 0;
+
+  --sky-300: 199 92% 56%;
+  --pink-300: 325 80% 70%;
+  --green-300: 140 70% 64%;
+  --yellow-300: 50 90% 65%;
+  --red-300: 0 92% 70%;
+  --purple-300: 270 80% 75%;
+  --violet-300: 255 80% 80%;
+
+  /* Monochrome / Light Theme Colors */
+  --slate-100: 210 40% 96%;
+  --slate-300: 210 40% 86%;
+  --gray-200: 220 13% 91%;
+  --zinc-300: 240 5% 84%;
+  --neutral-200: 0 0% 90%;
+  --stone-300: 24 5% 83%;
+  --sky-100: 204 33% 97%;
+  --indigo-100: 226 27% 96%;
+
+  --ring: 320 100% 60%;
+}
+
+.cyber {
+  --background: 150 50% 2%;
+  /* Matrix Black/Green tint */
+  --foreground: 150 100% 90%;
+  --card: 150 50% 4%;
+  --card-foreground: 150 100% 90%;
+  --popover: 150 50% 4%;
+  --popover-foreground: 150 100% 90%;
+  --primary: 140 100% 50%;
+  /* Matrix Green */
+  --primary-foreground: 0 0% 0%;
+  --secondary: 280 100% 60%;
+  /* Purple to contrast */
+  --secondary-foreground: 0 0% 100%;
+  --muted: 150 30% 10%;
+  --muted-foreground: 150 20% 60%;
+  --accent: 150 30% 15%;
+  --accent-foreground: 150 100% 90%;
+  --destructive: 0 100% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 140 100% 20%;
+  --input: 140 100% 15%;
+  --ring: 140 100% 50%;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply antialiased selection:bg-pink-500/30 selection:text-white;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+
+  /* Thin Minimal Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    transition: background-color 0.3s;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.2);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* --- Solaris Theme Utilities --- */
+
+/* Spotlight Effect */
+@keyframes spotlight {
+  0% {
+    opacity: 0;
+    transform: translate(-72%, -62%) scale(0.5);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -40%) scale(1);
+  }
+}
+
+.animate-spotlight {
+  animation: spotlight 2s ease .75s 1 forwards;
+}
+
+/* 1. Glass / Holographic Card */
+.solaris-card {
+  @apply relative overflow-hidden transition-all duration-500 ease-out;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: 1.5rem;
+  /* Ensure text doesn't disappear */
+  color: hsl(var(--card-foreground));
+  z-index: 10;
+}
+
+/* Holographic Scanline Effect */
+.solaris-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(0deg,
+      transparent,
+      transparent 30%,
+      hsl(var(--secondary) / 0.3));
+  transform: rotate(-45deg);
+  transition: all 0.5s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.solaris-card:hover {
+  transform: scale(1.02);
+  /* Slightly less than 1.05 to avoid layout shift issues on grids */
+  box-shadow: 0 0 20px hsl(var(--secondary) / 0.5);
+  border-color: hsl(var(--secondary) / 0.5);
+  background-color: hsl(var(--card) / 0.95);
+}
+
+.solaris-card:hover::before {
+  opacity: 1;
+  transform: rotate(-45deg) translateY(100%);
+}
+
+/* 2. Glow Text */
+.text-glow {
+  text-shadow: 0 0 20px currentColor;
+}
+
+/* 3. Skeleton Shimmer - Matte Version */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.solaris-skeleton {
+  @apply relative overflow-hidden rounded-lg;
+  background-color: hsl(var(--muted));
+}
+
+.solaris-skeleton::after {
+  content: "";
+  @apply absolute inset-0 -translate-x-full;
+  background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.1), transparent);
+  animation: shimmer 2s infinite;
+}
+
+/* 4. Custom Pill Nav */
+.pill-nav {
+  @apply rounded-full p-1 flex items-center gap-1;
+  background-color: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+}
+
+.pill-tab {
+  @apply px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300;
+  color: hsl(var(--muted-foreground));
+}
+
+.pill-tab:hover {
+  color: hsl(var(--foreground));
+}
+
+.pill-tab.active {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  box-shadow: 0 0 15px -3px rgba(34, 211, 238, 0.5);
+}
+
+/* Force TradingView Widget */
+.tradingview-widget-container,
+.tradingview-widget-container>div,
+.tradingview-widget-container iframe {
+  height: 100% !important;
+  width: 100% !important;
+  min-height: 100% !important;
+  display: block !important;
+}
+
+/* Dropdown Menu (User Requested) - Theme Adapted */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  min-width: 160px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  border-radius: var(--radius);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.dropdown:hover .dropdown-content {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.dropdown-content a {
+  color: hsl(var(--popover-foreground));
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+  display: block;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+/* Dropdown CSS End */
+
+/* User Requested Neon Glass Card Effect (Market Page) */
+.neon-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.neon-card {
+  position: relative;
+  min-height: 250px;
+  /* Consistent height */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px;
+  /* Reduced margin for grid */
+  transition: 0.5s;
+  background: hsl(var(--card));
+  border-radius: 1rem;
+  overflow: hidden;
+  /* Contain pseudo-elements */
+}
+
+/* Skewed highlight effect */
+.neon-card::before {
+  content: ' ';
+  position: absolute;
+  top: 0;
+  left: 20px;
+  width: 50%;
+  height: 100%;
+  background: #fff;
+  border-radius: 8px;
+  transform: skewX(15deg);
+  transition: 0.5s;
+  opacity: 0.05;
+  /* Subtle default */
+  pointer-events: none;
+}
+
+.neon-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20px;
+  width: 50%;
+  height: 100%;
+  background: #fff;
+  border-radius: 8px;
+  transform: skewX(15deg);
+  transition: 0.5s;
+  filter: blur(30px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.neon-card:hover:before,
+.neon-card:hover:after {
+  transform: skewX(0deg);
+  left: 20px;
+  width: calc(100% - 40px);
+  opacity: 0.6;
+}
+
+/* Variant Gradients */
+.neon-card.variant-gold::before,
+.neon-card.variant-gold::after {
+  background: linear-gradient(315deg, #ffbc00, #ff0058);
+}
+
+.neon-card.variant-cyan::before,
+.neon-card.variant-cyan::after {
+  background: linear-gradient(315deg, #03a9f4, #ff0058);
+}
+
+.neon-card.variant-lime::before,
+.neon-card.variant-lime::after {
+  background: linear-gradient(315deg, #4dff03, #00d0ff);
+}
+
+/* Default Fallback */
+.neon-card.variant-default::before,
+.neon-card.variant-default::after {
+  background: linear-gradient(315deg, hsl(var(--primary)), hsl(var(--secondary)));
+}
+
+/* Content Wrapper inside card */
+.neon-card-content {
+  position: relative;
+  z-index: 10;
+  padding: 1.5rem;
+  background: rgba(var(--card), 0.5);
+  /* Semi-transparent */
+  backdrop-filter: blur(5px);
+  border-radius: 8px;
+  width: 100%;
+  /* Fill container */
+  height: 100%;
+  transition: 0.5s;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.neon-card:hover .neon-card-content {
+  background: rgba(0, 0, 0, 0.4);
+  /* Darken content slightly on hover */
+}
+
+/* Scanning Animation */
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.animate-scan {
+  animation: scan 3s linear infinite;
 }

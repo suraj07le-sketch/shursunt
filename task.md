@@ -1,0 +1,1 @@
+git remote add origin https://github.com/suraj07le-sketch/solaris-trading.git
