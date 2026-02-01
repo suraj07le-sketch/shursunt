@@ -181,7 +181,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                                     />
                                 )}
                                 <div className="relative flex items-center gap-3">
-                                    <div className="relative w-8 h-8 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center border border-primary/30 group-hover:border-primary/50 transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(255,159,28,0.3)]">
+                                    <div className="relative w-8 h-8 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center border border-primary/30 group-hover:border-primary/50 transition-all duration-300 group-hover:shadow-[0_0_15px_hsl(var(--primary)/0.3)]">
                                         {user?.user_metadata?.avatar_url ? (
                                             <img
                                                 src={user.user_metadata.avatar_url}
@@ -205,7 +205,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                                             pathname === "/settings" ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
                                         )}
                                     >
-                                        <ThinShineText shineColor="rgba(255, 159, 28, 0.6)" duration={600}>
+                                        <ThinShineText shineColor="hsl(var(--primary) / 0.6)" duration={600}>
                                             {t('settings')}
                                         </ThinShineText>
                                     </span>

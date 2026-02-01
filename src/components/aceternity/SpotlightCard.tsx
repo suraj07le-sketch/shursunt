@@ -59,7 +59,7 @@ export function SpotlightCard({
           background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, ${spotlightColor}, transparent 40%)`,
         }}
       />
-      
+
       {/* Animated gradient fill */}
       <div
         className="pointer-events-none absolute inset-0 rounded-2xl transition-opacity duration-500"
@@ -117,7 +117,7 @@ export function SpotlightButton({
           background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255,255,255,0.3), transparent 50%)`,
         }}
       />
-      
+
       {/* Content */}
       <span className="relative z-10">{children}</span>
     </button>
@@ -149,7 +149,7 @@ export function Spotlight({ children, className }: SpotlightProps) {
         className="pointer-events-none absolute inset-0 z-10 opacity-0 transition-opacity duration-500"
         style={{
           opacity: 1,
-          background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 159, 28, 0.15), transparent 25%)`,
+          background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, hsl(var(--primary) / 0.15), transparent 25%)`,
         }}
       />
       {children}

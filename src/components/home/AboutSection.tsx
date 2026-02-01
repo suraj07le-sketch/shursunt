@@ -14,8 +14,8 @@ export const AboutSection = () => {
                 <div className="max-w-5xl mx-auto">
                     <SpotlightCard
                         className="p-8 md:p-12 border-primary/20 bg-white/80 dark:bg-black/40 backdrop-blur-xl shadow-2xl"
-                        spotlightColor="rgba(255, 159, 28, 0.2)"
-                        fillColor="rgba(255, 159, 28, 0.05)"
+                        spotlightColor="hsl(var(--primary) / 0.2)"
+                        fillColor="hsl(var(--primary) / 0.05)"
                     >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                             <div className="space-y-6">

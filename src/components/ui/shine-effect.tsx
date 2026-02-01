@@ -317,7 +317,7 @@ export function SpotlightButtonV2({
         className="absolute inset-0 opacity-0 transition-opacity duration-300"
         style={{
           opacity: isHovered ? 1 : 0,
-          background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 159, 28, 0.15), transparent 50%)`,
+          background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, hsl(var(--primary) / 0.15), transparent 50%)`,
         }}
       />
 
@@ -329,7 +329,7 @@ export function SpotlightButtonV2({
           background: `linear-gradient(
             ${mousePosition.x / 300}deg,
             transparent,
-            rgba(255, 159, 28, 0.1),
+            hsl(var(--primary) / 0.1),
             transparent
           )`,
         }}

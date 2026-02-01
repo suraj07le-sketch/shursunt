@@ -28,7 +28,7 @@ export default function Home() {
       <div
         className="fixed pointer-events-none inset-0 z-50 opacity-30"
         style={{
-          background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 159, 28, 0.08), transparent 30%)`,
+          background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, hsl(var(--primary) / 0.08), transparent 30%)`,
         }}
       />
 
@@ -75,7 +75,7 @@ export default function Home() {
             className="flex items-center gap-2"
             whileHover={{ scale: 1.05 }}
           >
-            <SolarisIcon className="w-16 h-16 text-primary drop-shadow-[0_0_15px_rgba(255,159,28,0.4)]" />
+            <SolarisIcon className="w-16 h-16 text-primary drop-shadow-[0_0_15px_hsl(var(--primary)/0.4)]" />
             <FooterShineText text={t('logoText')} />
           </motion.div>
           <div className="text-sm text-foreground/80 text-center">

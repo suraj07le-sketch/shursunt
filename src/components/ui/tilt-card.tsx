@@ -73,7 +73,7 @@ export function TiltCard({
                 className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 blur-xl"
                 style={{
                     opacity: isHovered ? 0.5 : 0,
-                    background: `radial-gradient(circle at ${glowPosition.x}% ${glowPosition.y}%, rgba(255, 159, 28, 0.4), transparent 50%)`,
+                    background: `radial-gradient(circle at ${glowPosition.x}% ${glowPosition.y}%, hsl(var(--primary) / 0.4), transparent 50%)`,
                 }}
             />
 

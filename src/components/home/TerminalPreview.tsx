@@ -54,7 +54,7 @@ export const TerminalPreview = () => {
                     {/* Main Terminal Window */}
                     <SpotlightCard
                         className="w-full aspect-video md:aspect-[21/9] bg-black/80 border-white/10 p-2 md:p-4 rounded-xl shadow-2xl"
-                        spotlightColor="rgba(255, 159, 28, 0.15)"
+                        spotlightColor="hsl(var(--primary) / 0.15)"
                         fillColor="rgba(0, 0, 0, 0.5)"
                     >
                         {/* Window Controls */}
