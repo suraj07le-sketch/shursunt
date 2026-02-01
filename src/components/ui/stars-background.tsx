@@ -1,5 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 import React, {
     useState,
     useEffect,
@@ -25,6 +26,7 @@ export const StarsBackground = ({
     className,
     minStarSize = 0.5,
     maxStarSize = 1.5,
+    starCount,
 }: {
     starDensity?: number;
     allStarsTwinkle?: boolean;
@@ -34,14 +36,21 @@ export const StarsBackground = ({
     className?: string;
     minStarSize?: number;
     maxStarSize?: number;
+    starCount?: number;
 }) => {
+    // If starCount is provided, calculate starDensity from it
+    const calculatedStarDensity = starCount
+        ? starCount / 10000 // Approximate conversion
+        : starDensity;
     const [stars, setStars] = useState<StarProps[]>([]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const { theme } = useTheme(); // Hook to detect theme
 
     const generateStars = useCallback(
         (width: number, height: number): StarProps[] => {
             const area = width * height;
-            const numStars = Math.floor(area * starDensity);
+            // If starCount is provided, use it directly; otherwise calculate from density
+            const numStars = starCount || Math.floor(area * calculatedStarDensity);
             return Array.from({ length: numStars }, () => {
                 const shouldTwinkle =
                     allStarsTwinkle || Math.random() < twinkleProbability;
@@ -58,13 +67,14 @@ export const StarsBackground = ({
             });
         },
         [
-            starDensity,
+            calculatedStarDensity,
             allStarsTwinkle,
             twinkleProbability,
             minTwinkleSpeed,
             maxTwinkleSpeed,
             minStarSize,
             maxStarSize,
+            starCount,
         ]
     );
 
@@ -117,7 +127,10 @@ export const StarsBackground = ({
             stars.forEach((star) => {
                 ctx.beginPath();
                 ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+
+                // Theme Aware Color: Dark Gray for Light Mode, White for Dark Mode
+                const starColor = theme === 'light' ? '82, 82, 91' : '255, 255, 255';
+                ctx.fillStyle = `rgba(${starColor}, ${star.opacity})`;
                 ctx.fill();
 
                 if (star.twinkleSpeed !== null) {
@@ -135,7 +148,7 @@ export const StarsBackground = ({
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [stars]);
+    }, [stars, theme]); // Re-render when theme changes
 
     return (
         <canvas

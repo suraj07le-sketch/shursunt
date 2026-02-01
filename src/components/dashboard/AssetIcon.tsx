@@ -12,9 +12,10 @@ interface AssetIconProps {
     type?: 'stock' | 'crypto';
     className?: string;
     containerClassName?: string;
+    showBackground?: boolean;
 }
 
-export default function AssetIcon({ asset, size = 32, type, className, containerClassName }: AssetIconProps) {
+export default function AssetIcon({ asset, size = 32, type, className, containerClassName, showBackground = true }: AssetIconProps) {
     const [sourceIndex, setSourceIndex] = useState(0); // 0: primary, 1+: secondaries, final: fallback
     const [imageError, setImageError] = useState(false);
 
@@ -57,7 +58,7 @@ export default function AssetIcon({ asset, size = 32, type, className, container
         return (
             <div
                 style={containerStyle}
-                className={cn("relative rounded-full overflow-hidden bg-white/10 flex-shrink-0 border border-white/10", containerClassName)}
+                className={cn("relative rounded-full overflow-hidden flex-shrink-0 border border-white/10", containerClassName)}
             >
                 <Image
                     src={logoUrl}

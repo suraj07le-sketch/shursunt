@@ -2,7 +2,7 @@ export default function JsonLd() {
     const jsonLd = {
         '@context': 'https://schema.org',
         '@type': 'SoftwareApplication',
-        name: 'Solaris AI',
+        name: 'ShursunT',
         applicationCategory: 'FinanceApplication',
         operatingSystem: 'Web',
         offers: {

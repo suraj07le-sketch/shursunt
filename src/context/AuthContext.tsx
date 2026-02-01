@@ -110,10 +110,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } finally {
             setUser(null);
             setSession(null);
-            router.push("/login");
-            router.refresh();
+            setProfile(null);
+            // Use window.location for full page reload to ensure clean state
+            window.location.href = "/login";
         }
     };
+
+    // Auto-logout on inactivity (30 minutes)
+    useEffect(() => {
+        if (!user) return;
+
+        const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+        let timeoutId: NodeJS.Timeout;
+
+        const resetTimer = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                // Determine if we need to show a toast (only if page is visible)
+                if (document.visibilityState === 'visible') {
+                    // toast.error("Session timed out due to inactivity");
+                }
+                signOut();
+            }, TIMEOUT_MS);
+        };
+
+        const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
+        events.forEach(event => document.addEventListener(event, resetTimer));
+
+        resetTimer(); // Start timer
+
+        return () => {
+            clearTimeout(timeoutId);
+            events.forEach(event => document.removeEventListener(event, resetTimer));
+        };
+    }, [user]); // Removed signOut dependency loop, functions are stable
 
     return (
         <AuthContext.Provider value={{ user, session, profile, loading, signOut }}>

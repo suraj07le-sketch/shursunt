@@ -49,7 +49,7 @@ export const GlowingEffect = ({
             onMouseLeave={() => setIsHovered(false)}
             style={{
                 // We use a radial gradient mask to create the glow
-                background: `radial-gradient(${spread * 5}px circle at ${mousePosition.x}px ${mousePosition.y}px, var(--blue-500), transparent)`,
+                background: `radial-gradient(${spread * 5}px circle at ${mousePosition.x}px ${mousePosition.y}px, hsl(var(--primary)), transparent)`,
             }}
         >
             {/* Inner blur layer */}

@@ -6,6 +6,7 @@ import TradingViewWidget from "@/components/dashboard/TradingViewWidget";
 import MarketTable from "@/components/dashboard/MarketTable";
 import { useAuth } from "@/context/AuthContext";
 import { LocalStorage } from "@/lib/storage";
+import { useRouter } from "next/navigation";
 
 interface MarketDashboardProps {
     coins: Coin[];
@@ -15,6 +16,16 @@ interface MarketDashboardProps {
 export default function MarketDashboard({ coins, assetType = 'stock' }: MarketDashboardProps) {
     const [selectedSymbol, setSelectedSymbol] = useState(assetType === 'stock' ? "BSE:RELIANCE" : "BINANCE:BTCUSDT");
     const topRef = useRef<HTMLDivElement>(null);
+    const router = useRouter();
+
+    // Auto-refresh data on focus
+    useEffect(() => {
+        const handleFocus = () => {
+            router.refresh();
+        };
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [router]);
 
     const handleCoinSelect = (symbol: string) => {
         // Assume symbols from DB are like 'RELIANCE', 'TCS'.

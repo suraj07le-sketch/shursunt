@@ -5,8 +5,8 @@ export default function robots(): MetadataRoute.Robots {
         rules: {
             userAgent: '*',
             allow: '/',
-            disallow: ['/api/admin/', '/dashboard/admin/'],
+            disallow: ['/api/admin/', '/admin/'],
         },
-        sitemap: 'https://solaris-ai.com/sitemap.xml',
+        sitemap: 'https://shursunt.com/sitemap.xml',
     }
 }

@@ -1,13 +1,18 @@
 import { Coin } from "@/types";
 import { ArrowUpRight, ArrowDownRight, Plus, Brain, Check } from "lucide-react";
-import Image from "next/image";
-import { getLogoUrl } from "@/lib/imageUtils";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect } from "react";
 import { LocalStorage } from "@/lib/storage";
 import AssetIcon from "./AssetIcon";
 import "crypto-icons/font.css";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { SpotlightCard } from "@/components/aceternity/SpotlightCard";
+import { TiltCard } from "@/components/ui/tilt-card";
+import { MagneticCard } from "@/components/ui/magnetic-button";
+import { Sparkles } from "@/components/ui/sparkles";
+import { HoverScale } from "@/components/ui/shine-effect";
+import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 
 interface MarketGridProps {
     coins: Coin[];
@@ -27,7 +32,6 @@ export default function MarketGrid({
     const { user } = useAuth();
     const [watchlistIds, setWatchlistIds] = useState<Set<string>>(initialWatchlistIds || new Set());
 
-    // Fallback sync if ids not passed (e.g. directly used)
     useEffect(() => {
         if (initialWatchlistIds) {
             setWatchlistIds(initialWatchlistIds);
@@ -36,160 +40,198 @@ export default function MarketGrid({
             setWatchlistIds(new Set(list.map(item => item.coin_id)));
         }
     }, [initialWatchlistIds, user]);
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {coins.map((coin) => {
                 const isPositive = coin.price_change_percentage_24h >= 0;
 
                 return (
-                    <div
+                    <TiltCard
                         key={coin.id}
-                        onClick={() => onSelect?.(coin.symbol)}
-                        className="relative group overflow-hidden rounded-2xl bg-neutral-900/50 border border-white/5 p-6 hover:border-white/20 transition-all duration-300 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] cursor-pointer"
+                        className="group cursor-pointer"
+                        tiltStrength={8}
+                        perspective={1000}
+                        glareEffect={true}
                     >
-                        {/* Hover Gradient Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                        <HoverBorderGradient
+                            containerClassName="rounded-3xl w-full h-full shadow-xl"
+                            className="w-full h-full bg-transparent p-0 rounded-3xl"
+                            as="div"
+                            duration={3}
+                        >
+                            <SpotlightCard
+                                className="h-full p-4 transition-all duration-300 rounded-3xl border-0"
+                                spotlightColor="rgba(255, 159, 28, 0.15)"
+                                fillColor="rgba(255, 159, 28, 0.05)"
+                            >
+                                {/* Hover Gradient Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-3xl" />
 
-                        <div className="relative z-10 flex flex-col h-full justify-between gap-6">
-                            {/* Top Row: Info & Actions */}
-                            <div className="flex justify-between items-start gap-2 w-full">
-                                {/* Left: Logo & Name */}
-                                <div className="flex gap-3 md:gap-4 items-center min-w-0">
-                                    <AssetIcon
-                                        asset={coin}
-                                        size={44}
-                                        type={assetType}
-                                        containerClassName="w-10 h-10 md:w-11 md:h-11 shadow-[0_0_15px_rgba(var(--primary),0.2)]"
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                        <h3 className="text-base md:text-lg font-black tracking-tight text-foreground leading-tight truncate">
-                                            {coin.symbol.toUpperCase()}
-                                        </h3>
-                                        <p className="text-[10px] md:text-xs text-muted-foreground font-medium truncate">
-                                            {coin.name}
-                                        </p>
+                                <div className="relative z-10 flex flex-col h-full justify-between gap-4">
+                                    {/* Top Row: Info & Actions */}
+                                    <div className="flex justify-between items-start gap-2 w-full">
+                                        {/* Left: Logo & Name */}
+                                        <div className="flex gap-3 md:gap-4 items-center min-w-0">
+                                            <div className="relative">
+                                                <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-card/50 flex items-center justify-center shadow-[0_0_15px_rgba(var(--primary),0.2)] group-hover:shadow-[0_0_25px_rgba(var(--primary),0.4)] transition-shadow duration-300">
+                                                    <AssetIcon
+                                                        asset={coin}
+                                                        size={36}
+                                                        type={assetType}
+                                                    />
+                                                </div>
+                                                {/* Animated ring on hover */}
+                                                <div className="absolute inset-0 rounded-full border-2 border-primary/30 opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <HoverScale scale={1.05} duration={150}>
+                                                    <h3 className="text-base md:text-lg font-black tracking-tight text-foreground leading-tight truncate group-hover:text-primary transition-colors">
+                                                        {coin.symbol.toUpperCase()}
+                                                    </h3>
+                                                </HoverScale>
+                                                <p className="text-[10px] md:text-xs text-muted-foreground font-medium truncate group-hover:text-foreground transition-colors">
+                                                    {coin.name}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Right: Actions */}
+                                        <div className="flex gap-1.5 md:gap-2 flex-shrink-0">
+                                            <Sparkles
+                                                sparklesCount={15}
+                                                sparklesColor="#ff9f1c"
+                                                sparkleSize={3}
+                                            >
+                                                <button
+                                                    className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-black transition-all duration-300 shadow-sm z-20 hover:scale-110 hover:shadow-lg hover:shadow-primary/30"
+                                                    title={assetType === 'crypto' ? "AI Prediction" : "Predictions only for Crypto"}
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        if (assetType !== 'crypto') {
+                                                            toast.error("AI Predictions are currently only available for Crypto assets.");
+                                                            return;
+                                                        }
+                                                        if (!user) {
+                                                            toast.error("Please login to use AI features.");
+                                                            return;
+                                                        }
+
+                                                        try {
+                                                            e.currentTarget.style.transform = 'scale(0.9)';
+
+                                                            // Use direct webhook for Crypto (same as Watchlist)
+                                                            const response = await fetch("https://studio.pucho.ai/api/v1/webhooks/gWOr6DCFfy2q0lrbM4Bz8", {
+                                                                method: "POST",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({
+                                                                    coin: coin.symbol.toUpperCase(),
+                                                                    timeframe: "4h",
+                                                                    userId: user.id
+                                                                })
+                                                            });
+
+                                                            if (response.ok) {
+                                                                toast.success(`Prediction requested for ${coin.name}!`);
+                                                                // Trigger polling if applicable
+                                                                if (typeof window !== 'undefined' && (window as any).triggerPredictionPolling) {
+                                                                    (window as any).triggerPredictionPolling();
+                                                                }
+                                                            } else {
+                                                                toast.error("Failed to trigger prediction.");
+                                                            }
+                                                            e.currentTarget.style.transform = 'scale(1)';
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            toast.error("Error connecting to prediction service.");
+                                                        }
+                                                    }}
+                                                >
+                                                    <Brain size={16} strokeWidth={2} />
+                                                </button>
+                                            </Sparkles>
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (watchlistIds.has(coin.id)) return;
+
+                                                    if (!user) {
+                                                        import('sonner').then(({ toast }) => toast.error("Please login to use watchlist"));
+                                                        return;
+                                                    }
+
+                                                    try {
+                                                        const { LocalStorage } = await import("@/lib/storage");
+                                                        const { supabase } = await import("@/lib/supabase");
+                                                        const { toast } = await import("sonner");
+
+                                                        const localResult = LocalStorage.addToWatchlist(user.id, coin, assetType);
+
+                                                        if (!localResult) {
+                                                            toast.error("Item already in your watchlist!");
+                                                            return;
+                                                        }
+
+                                                        toast.success("Added to Watchlist!");
+                                                        onWatchlistChange?.();
+                                                        setWatchlistIds(prev => new Set([...prev, coin.id]));
+
+                                                        supabase.from('watchlist').insert({
+                                                            user_id: user.id,
+                                                            coin_id: coin.id,
+                                                            coin_data: coin,
+                                                            asset_type: assetType
+                                                        } as any).then(({ error }: any) => {
+                                                            if (error) {
+                                                                console.error("Supabase Backup Sync Failed:", error);
+                                                                toast.error("Failed to sync with cloud. Changes saved locally.");
+                                                                setWatchlistIds(prev => {
+                                                                    const next = new Set(prev);
+                                                                    next.delete(coin.id);
+                                                                    return next;
+                                                                });
+                                                            }
+                                                        });
+                                                    } catch (err) {
+                                                        console.error("Watchlist Error:", err);
+                                                    }
+                                                }}
+                                                disabled={watchlistIds.has(coin.id)}
+                                                className={cn(
+                                                    "w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full transition-all duration-300 shadow-lg z-20",
+                                                    "hover:scale-110",
+                                                    watchlistIds.has(coin.id)
+                                                        ? "bg-green-500/20 text-green-500 cursor-default border border-green-500/30"
+                                                        : "bg-primary text-black hover:bg-primary/80 hover:shadow-primary/30"
+                                                )}
+                                                title={watchlistIds.has(coin.id) ? "Already in Watchlist" : "Add to Watchlist"}
+                                            >
+                                                {watchlistIds.has(coin.id) ? <Check size={16} strokeWidth={3} /> : <Plus size={16} strokeWidth={3} />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Bottom Row: Price & Stats */}
+                                    <div className="mt-4 w-full">
+                                        <div className="text-xl md:text-2xl font-black tracking-tight text-foreground mb-0.5 group-hover:text-primary transition-colors duration-300">
+                                            {assetType === 'stock' ? '₹' : '$'}
+                                            {coin.current_price.toLocaleString()}
+                                        </div>
+
+                                        <div className={cn(
+                                            "flex items-center gap-0.5 text-[11px] md:text-xs font-bold transition-all duration-300",
+                                            isPositive ? 'text-[#00cc88] group-hover:text-[#00ff99]' : 'text-rose-500 group-hover:text-red-400'
+                                        )}>
+                                            <span className="transform group-hover:scale-125 transition-transform duration-200">
+                                                {isPositive ? <ArrowUpRight className="w-3.5 h-3.5 md:w-4 md:h-4" strokeWidth={3} /> : <ArrowDownRight className="w-3.5 h-3.5 md:w-4 md:h-4" strokeWidth={3} />}
+                                            </span>
+                                            <span>{Math.abs(coin.price_change_percentage_24h).toFixed(2)}%</span>
+                                        </div>
                                     </div>
                                 </div>
-
-                                {/* Right: Actions */}
-                                <div className="flex gap-1.5 md:gap-2 flex-shrink-0">
-                                    <button
-                                        className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-black transition-all shadow-sm z-20"
-                                        title={assetType === 'crypto' ? "AI Prediction" : "Predictions only for Crypto"}
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            if (assetType !== 'crypto') {
-                                                toast.error("AI Predictions are currently only available for Crypto assets.");
-                                                return;
-                                            }
-                                            if (!user) {
-                                                toast.error("Please login to use AI features.");
-                                                return;
-                                            }
-
-                                            try {
-                                                e.currentTarget.style.transform = 'scale(0.9)';
-                                                const response = await fetch("/api/predictions", {
-                                                    method: "POST",
-                                                    headers: { "Content-Type": "application/json" },
-                                                    body: JSON.stringify({
-                                                        coin: coin.symbol.toUpperCase(),
-                                                        timeframe: "4h",
-                                                        userId: user.id
-                                                    })
-                                                });
-
-                                                if (response.ok) {
-                                                    toast.success(`Prediction requested for ${coin.name}!`);
-                                                } else {
-                                                    toast.error("Failed to trigger prediction.");
-                                                }
-                                                e.currentTarget.style.transform = 'scale(1)';
-                                            } catch (err) {
-                                                console.error(err);
-                                                toast.error("Error connecting to prediction service.");
-                                            }
-                                        }}
-                                    >
-                                        <Brain size={16} strokeWidth={2} />
-                                    </button>
-                                    <button
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            if (watchlistIds.has(coin.id)) return;
-
-                                            if (!user) {
-                                                import('sonner').then(({ toast }) => toast.error("Please login to use watchlist"));
-                                                return;
-                                            }
-
-                                            try {
-                                                const { LocalStorage } = await import("@/lib/storage");
-                                                const { supabase } = await import("@/lib/supabase");
-                                                const { toast } = await import("sonner");
-
-                                                // 1. LocalStorage
-                                                const localResult = LocalStorage.addToWatchlist(user.id, coin, assetType);
-
-                                                if (!localResult) {
-                                                    toast.error("Item already in your watchlist!");
-                                                    return;
-                                                }
-
-                                                toast.success("Added to Watchlist!");
-                                                onWatchlistChange?.();
-                                                // Local update for immediate feedback
-                                                setWatchlistIds(prev => new Set([...prev, coin.id]));
-
-                                                // 2. Supabase
-                                                supabase.from('watchlist').insert({
-                                                    user_id: user.id,
-                                                    coin_id: coin.id,
-                                                    coin_data: coin,
-                                                    asset_type: assetType
-                                                } as any).then(({ error }: any) => {
-                                                    if (error) {
-                                                        console.error("Supabase Backup Sync Failed:", error);
-                                                        toast.error("Failed to sync with cloud. Changes saved locally.");
-
-                                                        // Rollback optimistic update
-                                                        setWatchlistIds(prev => {
-                                                            const next = new Set(prev);
-                                                            next.delete(coin.id);
-                                                            return next;
-                                                        });
-                                                    }
-                                                });
-                                            } catch (err) {
-                                                console.error("Watchlist Error:", err);
-                                            }
-                                        }}
-                                        disabled={watchlistIds.has(coin.id)}
-                                        className={`w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full transition-all shadow-lg z-20 ${watchlistIds.has(coin.id)
-                                            ? "bg-green-500/20 text-green-500 cursor-default border border-green-500/30"
-                                            : "bg-primary text-black hover:bg-primary/80 shadow-primary/20"
-                                            }`}
-                                        title={watchlistIds.has(coin.id) ? "Already in Watchlist" : "Add to Watchlist"}
-                                    >
-                                        {watchlistIds.has(coin.id) ? <Check size={16} strokeWidth={3} /> : <Plus size={16} strokeWidth={3} />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Bottom Row: Price & Stats */}
-                            <div className="mt-4 w-full">
-                                <div className="text-xl md:text-2xl font-black tracking-tight text-foreground mb-0.5">
-                                    {assetType === 'stock' ? '₹' : '$'}
-                                    {coin.current_price.toLocaleString()}
-                                </div>
-
-                                <div className={`flex items-center gap-0.5 text-[11px] md:text-xs font-bold ${isPositive ? 'text-[#00cc88]' : 'text-rose-500'}`}>
-                                    {isPositive ? <ArrowUpRight className="w-3.5 h-3.5 md:w-4 md:h-4" strokeWidth={3} /> : <ArrowDownRight className="w-3.5 h-3.5 md:w-4 md:h-4" strokeWidth={3} />}
-                                    <span>{Math.abs(coin.price_change_percentage_24h).toFixed(2)}%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                            </SpotlightCard>
+                        </HoverBorderGradient>
+                    </TiltCard>
                 );
             })}
         </div>

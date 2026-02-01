@@ -88,7 +88,7 @@ export default function CoinCard({ coin }: CoinCardProps) {
             await new Promise(resolve => setTimeout(resolve, 3000));
 
             // Redirect
-            router.push("/dashboard/predictions");
+            router.push("/predictions");
 
         } catch (err) {
             console.error("Prediction Error:", err);

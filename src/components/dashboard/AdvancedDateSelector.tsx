@@ -20,6 +20,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, X } from "lucide-r
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SolarisButton } from "@/components/ui/SolarisButton";
 
 interface AdvancedDateSelectorProps {
     selectedDate: string; // YYYY-MM-DD
@@ -80,9 +81,9 @@ export default function AdvancedDateSelector({ selectedDate, onChange, className
             <div className="flex items-center gap-1 bg-card/60 border border-border p-1 rounded-xl shadow-2xl backdrop-blur-md">
                 <button
                     onClick={handlePrevDay}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all active:scale-95"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors"
                 >
-                    <ChevronLeft size={18} strokeWidth={2.5} />
+                    <ChevronLeft size={18} />
                 </button>
 
                 <div
@@ -105,9 +106,9 @@ export default function AdvancedDateSelector({ selectedDate, onChange, className
 
                 <button
                     onClick={handleNextDay}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-all active:scale-95"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground hover:text-primary transition-colors"
                 >
-                    <ChevronRight size={18} strokeWidth={2.5} />
+                    <ChevronRight size={18} />
                 </button>
             </div>
 
@@ -172,18 +173,20 @@ export default function AdvancedDateSelector({ selectedDate, onChange, className
 
                         {/* Footer */}
                         <div className="mt-4 pt-4 border-t border-border flex justify-between items-center px-1">
-                            <button
+                            <SolarisButton
+                                variant="small"
                                 onClick={() => handleDateSelect(new Date())}
-                                className="text-[10px] font-black uppercase text-primary hover:opacity-80 transition-opacity"
+                                className="text-[10px] bg-transparent border-0 hover:bg-primary/10"
                             >
                                 Jump to Today
-                            </button>
-                            <button
+                            </SolarisButton>
+                            <SolarisButton
+                                variant="small"
                                 onClick={() => setIsOpen(false)}
-                                className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground transition-colors"
+                                className="text-[10px] bg-transparent border-0 hover:bg-white/5"
                             >
                                 Close
-                            </button>
+                            </SolarisButton>
                         </div>
                     </motion.div>
                 )}

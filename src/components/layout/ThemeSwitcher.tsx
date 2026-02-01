@@ -34,7 +34,9 @@ export function ThemeSwitcher({ className }: { className?: string }) {
                         onClick={() => setTheme(t.name)}
                         className={cn(
                             "p-1.5 rounded-full transition-all duration-300 relative",
-                            isActive ? "bg-white/10 text-white shadow-sm" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                            isActive 
+                                ? "bg-primary/20 text-primary shadow-sm border border-primary/20" 
+                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                         )}
                         title={`Switch to ${t.name} theme`}
                     >
@@ -52,3 +54,4 @@ export function ThemeSwitcher({ className }: { className?: string }) {
         </div>
     );
 }
+

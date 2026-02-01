@@ -42,7 +42,7 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
     // Apply filters
     // Pagination logic
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 6; // 3 cols * 2 rows
+    const itemsPerPage = 8; // 4 cols * 2 rows
 
     // Reset page when filter changes
     const filteredData = currentData.filter(coin => {
@@ -72,23 +72,24 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
     );
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col h-full gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header & Controls */}
-            <div className="flex flex-col md:flex-row gap-6 justify-between items-end md:items-center">
+            <div className="flex-none flex flex-col md:flex-row gap-4 justify-between items-end md:items-center">
                 <div>
-                    <h1 className="text-4xl font-black tracking-tight mb-2 text-white">Market Place</h1>
-                    <p className="text-muted-foreground">Discover and track global assets</p>
+                    <h1 className="text-3xl font-black tracking-tight mb-1 text-foreground">Market Place</h1>
+                    <p className="text-sm text-muted-foreground">Discover and track global assets</p>
                 </div>
 
                 {/* Stock/Crypto Toggle */}
-                <div className="flex gap-2">
+                {/* Stock/Crypto Toggle Segmented Control */}
+                <div className="flex gap-1 bg-black/5 dark:bg-black/20 p-1 rounded-xl border border-black/5 dark:border-white/5">
                     <button
                         onClick={() => { setAssetType('stock'); setCurrentPage(1); }}
                         className={cn(
-                            "px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 border",
+                            "px-4 py-1.5 rounded-lg font-bold text-xs transition-all duration-300",
                             assetType === 'stock'
-                                ? "bg-primary text-primary-foreground border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)]"
-                                : "bg-card hover:bg-white/5 border-white/10 text-muted-foreground"
+                                ? "bg-white dark:bg-white/10 text-black dark:text-white shadow-sm"
+                                : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
                         )}
                     >
                         Stocks
@@ -96,10 +97,10 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
                     <button
                         onClick={() => { setAssetType('crypto'); setCurrentPage(1); }}
                         className={cn(
-                            "px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 border",
+                            "px-4 py-1.5 rounded-lg font-bold text-xs transition-all duration-300",
                             assetType === 'crypto'
-                                ? "bg-secondary text-secondary-foreground border-secondary shadow-[0_0_15px_rgba(var(--secondary),0.3)]"
-                                : "bg-card hover:bg-white/5 border-white/10 text-muted-foreground"
+                                ? "bg-white dark:bg-white/10 text-yellow-500 shadow-sm"
+                                : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
                         )}
                     >
                         Crypto
@@ -108,7 +109,7 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
             </div>
 
             {/* Filters Bar */}
-            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white/5 p-3 rounded-2xl border border-white/10 backdrop-blur-sm">
+            <div className="flex-none flex flex-col md:flex-row gap-2 justify-between items-center bg-white/5 p-2 rounded-xl border border-white/10 backdrop-blur-sm">
                 <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 no-scrollbar items-center">
                     {/* All Assets Button */}
                     <button
@@ -203,7 +204,7 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
             {/* Pagination Controls */}
             {
                 totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-4 pt-4">
+                    <div className="mt-20 flex justify-center items-center gap-4 pt-4">
                         <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}

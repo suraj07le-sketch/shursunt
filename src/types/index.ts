@@ -33,4 +33,5 @@ export interface WatchlistItem {
     coin_id: string;
     coin_data: Coin;
     asset_type?: 'stock' | 'crypto';
+    created_at?: string;
 }

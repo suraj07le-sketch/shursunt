@@ -1,12 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import createMiddleware from 'next-intl/middleware';
+import { routing } from './i18n/routing';
+
+const handleI18nRouting = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
-    let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
-    })
+    const response = handleI18nRouting(request);
 
     // Create a Supabase client configured to use cookies
     const supabase = createServerClient(
@@ -19,9 +19,7 @@ export async function middleware(request: NextRequest) {
                 },
                 setAll(cookiesToSet) {
                     cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-                    response = NextResponse.next({
-                        request,
-                    })
+                    // Update the response from next-intl
                     cookiesToSet.forEach(({ name, value, options }) =>
                         response.cookies.set(name, value, options)
                     )
@@ -31,31 +29,32 @@ export async function middleware(request: NextRequest) {
     )
 
     // IMPORTANT: Avoid writing any logic between createServerClient and
-    // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-    // issues with users being randomly logged out.
-
+    // supabase.auth.getUser().
     const {
         data: { user },
     } = await supabase.auth.getUser()
 
     const path = request.nextUrl.pathname;
 
-    // 1. Protected Routes: /dashboard/*
-    if (path.startsWith('/dashboard')) {
+    // Protected routes - these require authentication
+    const protectedPaths = ['/dashboard', '/crypto', '/market', '/settings', '/predictions', '/stocks', '/watchlist', '/billing', '/admin'];
+    const isProtected = protectedPaths.some(p => path.includes(p));
+
+    if (isProtected) {
         if (!user) {
             // Redirect to login if not authenticated
             const url = request.nextUrl.clone()
-            url.pathname = '/login'
+            url.pathname = '/login';
             return NextResponse.redirect(url)
         }
     }
 
-    // 2. Auth Routes: /login, /signup
-    if (path === '/login' || path === '/signup') {
+    // Check for Auth routes (Login/Signup) when already logged in
+    if (path.includes('/login') || path.includes('/signup')) {
         if (user) {
-            // Redirect to dashboard if already logged in
+            // Redirect to dashboard
             const url = request.nextUrl.clone()
-            url.pathname = '/dashboard'
+            url.pathname = path.replace(/\/login|\/signup/, '/dashboard');
             return NextResponse.redirect(url)
         }
     }
@@ -72,6 +71,6 @@ export const config = {
          * - favicon.ico (favicon file)
          * Feel free to modify this pattern to include more paths.
          */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

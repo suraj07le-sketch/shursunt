@@ -1,553 +1,485 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* --- 1. THEME ENGINE --- */
 
 @theme {
+  /* Fluid Spacing & Type (Optional future expansion) */
+  --font-display: "Clash Display", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+  /* Color System Mappings */
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
-  --animate-aurora: aurora 60s linear infinite;
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
 
-  @keyframes aurora {
-    from {
-      background-position: 50% 50%, 50% 50%;
+  /* Global Animations */
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-scan: scan 4s linear infinite;
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
     }
 
-    to {
-      background-position: 350% 50%, 350% 50%;
+    50% {
+      transform: translateY(-20px);
     }
   }
 
-  /* Meteor Effect */
-  --animate-meteor-effect: meteor 5s linear infinite;
-
-  @keyframes meteor {
+  @keyframes shimmer {
     0% {
-      transform: rotate(215deg) translateX(0);
+      transform: translateX(-100%);
+    }
+
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes scan {
+    0% {
+      top: 0%;
+      opacity: 0;
+    }
+
+    10% {
       opacity: 1;
     }
 
-    70% {
+    90% {
       opacity: 1;
     }
 
     100% {
-      transform: rotate(215deg) translateX(-500px);
+      top: 100%;
       opacity: 0;
     }
   }
-
-
-
-  --color-ring: hsl(var(--ring));
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
 }
 
 :root {
-  /* Enforce Solaris Dark Theme by default */
-  --background: 0 0% 4%;
-  /* #0a0a0a Void Black */
-  --foreground: 0 0% 98%;
-
-  --card: 0 0% 7%;
-  /* #121212 Matte */
-  --card-foreground: 0 0% 98%;
-
-  --popover: 0 0% 7%;
-  --popover-foreground: 0 0% 98%;
-
-  /* Primary: Neon Pink #F0ABFC / #ff007f range */
-  --primary: 310 90% 60%;
-  --primary-foreground: 0 0% 100%;
-
-  /* Secondary: Neon Cyan/Green #00f3ff range */
-  --secondary: 160 100% 50%;
-  --secondary-foreground: 0 0% 10%;
-
-  --muted: 0 0% 15%;
-  --muted-foreground: 240 5% 65%;
-
-  --accent: 0 0% 15%;
-  --accent-foreground: 0 0% 98%;
-
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-
-  --border: 0 0% 15%;
-  --input: 0 0% 15%;
-  --ring: 310 90% 60%;
-  --radius: 0.75rem;
+  /* GLOBAL DEFAULTS */
+  --radius: 1rem;
 }
 
+/* --- THEME 1: SOLARIS (DEFAULT / DARK) --- */
+/* A Professional, Deep Space theme with Gold/Orange accents representing the Sun */
+:root,
 .dark {
-  /* Same as root to ensure consistency */
-  --background: 0 0% 4%;
+  --background: 240 10% 4%;
+  /* #09090b - Void */
   --foreground: 0 0% 98%;
-  --card: 0 0% 7%;
+  /* White */
+
+  --card: 240 10% 7%;
+  /* #101012 */
   --card-foreground: 0 0% 98%;
-  --popover: 0 0% 7%;
+
+  --popover: 240 10% 7%;
   --popover-foreground: 0 0% 98%;
-  --primary: 310 90% 60%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 160 100% 50%;
-  --secondary-foreground: 0 0% 10%;
-  --muted: 0 0% 15%;
+
+  --primary: 35 100% 55%;
+  /* #ff9f1c - Solar Gold/Orange */
+  --primary-foreground: 0 0% 0%;
+
+  --secondary: 240 5% 20%;
+  /* #303036 */
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 240 5% 15%;
   --muted-foreground: 240 5% 65%;
-  --accent: 0 0% 15%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
+
+  --accent: 35 100% 55%;
+  --accent-foreground: 0 0% 0%;
+
+  --destructive: 0 85% 60%;
   --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 15%;
-  --input: 0 0% 15%;
-  --ring: 310 90% 60%;
+
+  --border: 240 5% 15%;
+  --input: 240 5% 15%;
+  --ring: 35 100% 55%;
+  /* Gold Ring */
 }
 
+/* --- THEME 2: POLARIS (LIGHT / GLASS) --- */
+/* Clean, Apple-inspired, High Contrast with Blue accents */
 .light {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
+  --background: 210 40% 98%;
+  /* Cool White / Alice Blue tint */
+  --foreground: 240 10% 10%;
+  /* #18181b */
+
   --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
+  /* White */
+  --card-foreground: 240 10% 10%;
+
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 310 90% 60%;
-  /* Keep Solaris Pink branding even in light mode */
-  --primary-foreground: 0 0% 98%;
-  --secondary: 160 100% 40%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
+  --popover-foreground: 240 10% 10%;
+
+  --primary: 215 100% 50%;
+  /* #007aff - Vivid Blue */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 240 5% 96%;
+  /* Light Gray */
+  --secondary-foreground: 240 10% 10%;
+
+  --muted: 240 5% 96%;
+  --muted-foreground: 240 4% 46%;
+
+  --accent: 215 100% 50%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 310 90% 60%;
+
+  --border: 240 6% 90%;
+  --input: 240 6% 90%;
+  --ring: 215 100% 50%;
 }
 
+/* --- THEME 3: NEBULA (NEON / CYBERPUNK) --- */
+/* The "Interesting" One. Blackest Black with Neon Pink/Cyan/Purple */
 .neon {
-  --background: 260 50% 5%;
-  /* Deep Purple Void */
-  --foreground: 280 100% 95%;
-  --card: 260 50% 8%;
-  --card-foreground: 280 100% 95%;
-  --popover: 260 50% 8%;
-  --popover-foreground: 280 100% 95%;
+  --background: 280 50% 2%;
+  /* Deep Purple/Black Void */
+  --foreground: 280 10% 95%;
+
+  --card: 280 40% 5%;
+  /* Darker than Solaris */
+  --card-foreground: 280 10% 95%;
+
+  --popover: 280 40% 5%;
+  --popover-foreground: 280 10% 95%;
+
   --primary: 320 100% 60%;
   /* Hot Pink */
   --primary-foreground: 0 0% 100%;
-  --secondary: 190 100% 50%;
+
+  --secondary: 180 100% 50%;
   /* Cyan */
   --secondary-foreground: 0 0% 0%;
-  --muted: 260 30% 15%;
-  --muted-foreground: 260 20% 70%;
-  --accent: 260 30% 20%;
-  --accent-foreground: 280 100% 95%;
+
+  --muted: 280 30% 10%;
+  --muted-foreground: 280 20% 70%;
+
+  --accent: 270 100% 60%;
+  /* Electric Purple */
+  --accent-foreground: 0 0% 100%;
+
   --destructive: 0 100% 50%;
   --destructive-foreground: 0 0% 100%;
-  --border: 260 30% 20%;
-  --input: 260 30% 20%;
-  /* Aceternity Variables */
-  --sky-500: 199 89% 48%;
-  --blue-500: 217 91% 60%;
-  --indigo-300: 226 100% 84%;
-  --blue-300: 213 94% 80%;
-  --violet-200: 255 100% 90%;
-  --blue-400: 213 94% 68%;
-  --white: 0 0% 100%;
-  --black: 0 0% 0%;
-  --transparent: 0 0% 0% / 0;
 
-  --sky-300: 199 92% 56%;
-  --pink-300: 325 80% 70%;
-  --green-300: 140 70% 64%;
-  --yellow-300: 50 90% 65%;
-  --red-300: 0 92% 70%;
-  --purple-300: 270 80% 75%;
-  --violet-300: 255 80% 80%;
-
-  /* Monochrome / Light Theme Colors */
-  --slate-100: 210 40% 96%;
-  --slate-300: 210 40% 86%;
-  --gray-200: 220 13% 91%;
-  --zinc-300: 240 5% 84%;
-  --neutral-200: 0 0% 90%;
-  --stone-300: 24 5% 83%;
-  --sky-100: 204 33% 97%;
-  --indigo-100: 226 27% 96%;
-
+  --border: 280 30% 20%;
+  /* Visible Purple Borders */
+  --input: 280 30% 20%;
   --ring: 320 100% 60%;
 }
 
+/* --- THEME 4: ECLIPSE (OLED / MINIMAL) --- */
+/* Pure Black (#000000) for battery saving and ultra-high contrast */
 .cyber {
-  --background: 150 50% 2%;
-  /* Matrix Black/Green tint */
-  --foreground: 150 100% 90%;
-  --card: 150 50% 4%;
-  --card-foreground: 150 100% 90%;
-  --popover: 150 50% 4%;
-  --popover-foreground: 150 100% 90%;
-  --primary: 140 100% 50%;
-  /* Matrix Green */
+  /* Mapping "cyber" class to Eclipse theme for now to reuse class logic */
+  --background: 0 0% 0%;
+  /* #000000 Pure Black */
+  --foreground: 0 0% 100%;
+  /* Pure White */
+
+  --card: 0 0% 0%;
+  /* Black w/ White Border */
+  --card-foreground: 0 0% 100%;
+
+  --popover: 0 0% 0%;
+  --popover-foreground: 0 0% 100%;
+
+  --primary: 0 0% 100%;
+  /* Monochrome Primary */
   --primary-foreground: 0 0% 0%;
-  --secondary: 280 100% 60%;
-  /* Purple to contrast */
+
+  --secondary: 0 0% 15%;
+  /* Dark Gray */
   --secondary-foreground: 0 0% 100%;
-  --muted: 150 30% 10%;
-  --muted-foreground: 150 20% 60%;
-  --accent: 150 30% 15%;
-  --accent-foreground: 150 100% 90%;
+
+  --muted: 0 0% 10%;
+  --muted-foreground: 0 0% 60%;
+
+  --accent: 0 0% 100%;
+  --accent-foreground: 0 0% 0%;
+
   --destructive: 0 100% 50%;
   --destructive-foreground: 0 0% 100%;
-  --border: 140 100% 20%;
-  --input: 140 100% 15%;
-  --ring: 140 100% 50%;
+
+  --border: 0 0% 25%;
+  /* High contrast border */
+  --input: 0 0% 25%;
+  --ring: 0 0% 100%;
 }
 
-@layer base {
-  html {
-    scroll-behavior: smooth;
-  }
+/* --- BASE STYLES --- */
 
+@layer base {
+
+  html,
   body {
-    @apply antialiased selection:bg-pink-500/30 selection:text-white;
+    @apply antialiased transition-colors duration-500 min-h-screen relative overflow-x-hidden;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    max-width: 100vw;
   }
 
-  /* Thin Minimal Scrollbar */
+  /* Global Accessibility Focus Ring */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Custom Scrollbar for all themes */
   ::-webkit-scrollbar {
     width: 6px;
-    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background-color: transparent;
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 9999px;
-    transition: background-color 0.3s;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    @apply bg-border rounded-full hover:bg-primary/50 transition-colors;
   }
 }
 
-/* --- Solaris Theme Utilities --- */
+/* --- UTILITY CLASSES --- */
 
-/* Spotlight Effect */
-@keyframes spotlight {
-  0% {
-    opacity: 0;
-    transform: translate(-72%, -62%) scale(0.5);
+/* Glass Card */
+.glass-card {
+  @apply relative overflow-hidden rounded-2xl border bg-card/20 backdrop-blur-2xl transition-all duration-300;
+  border-color: hsl(var(--border) / 0.3);
+}
+
+.glass-card:hover {
+  @apply bg-card/40 border-primary/30 shadow-lg shadow-primary/5 -translate-y-1;
+}
+
+/* Text Gradients */
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+}
+
+/* Neon Glow (Only active in Nebula/Neon theme basically, or forces effect) */
+.glow-primary {
+  box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.5);
+}
+
+.glow-text {
+  text-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+}
+
+/* Scroll Animations */
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-fade-in {
+    @apply opacity-0 translate-y-8 blur-sm transition-all duration-700 ease-out;
   }
 
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -40%) scale(1);
+  .scroll-in-view {
+    @apply opacity-100 translate-y-0 blur-none;
   }
 }
 
-.animate-spotlight {
-  animation: spotlight 2s ease .75s 1 forwards;
+/* Advanced Hover Animations */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* 1. Glass / Holographic Card */
-.solaris-card {
-  @apply relative overflow-hidden transition-all duration-500 ease-out;
-  background-color: hsl(var(--card));
-  border: 1px solid hsl(var(--border) / 0.5);
-  border-radius: 1.5rem;
-  /* Ensure text doesn't disappear */
-  color: hsl(var(--card-foreground));
-  z-index: 10;
-}
-
-/* Holographic Scanline Effect */
-.solaris-card::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(0deg,
-      transparent,
-      transparent 30%,
-      hsl(var(--secondary) / 0.3));
-  transform: rotate(-45deg);
-  transition: all 0.5s ease;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.solaris-card:hover {
-  transform: scale(1.02);
-  /* Slightly less than 1.05 to avoid layout shift issues on grids */
-  box-shadow: 0 0 20px hsl(var(--secondary) / 0.5);
-  border-color: hsl(var(--secondary) / 0.5);
-  background-color: hsl(var(--card) / 0.95);
-}
-
-.solaris-card:hover::before {
-  opacity: 1;
-  transform: rotate(-45deg) translateY(100%);
-}
-
-/* 2. Glow Text */
-.text-glow {
-  text-shadow: 0 0 20px currentColor;
-}
-
-/* 3. Skeleton Shimmer - Matte Version */
 @keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
   100% {
     transform: translateX(100%);
   }
 }
 
-.solaris-skeleton {
-  @apply relative overflow-hidden rounded-lg;
-  background-color: hsl(var(--muted));
-}
-
-.solaris-skeleton::after {
-  content: "";
-  @apply absolute inset-0 -translate-x-full;
-  background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.1), transparent);
-  animation: shimmer 2s infinite;
-}
-
-/* 4. Custom Pill Nav */
-.pill-nav {
-  @apply rounded-full p-1 flex items-center gap-1;
-  background-color: hsl(var(--muted) / 0.5);
-  border: 1px solid hsl(var(--border));
-}
-
-.pill-tab {
-  @apply px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-300;
-  color: hsl(var(--muted-foreground));
-}
-
-.pill-tab:hover {
-  color: hsl(var(--foreground));
-}
-
-.pill-tab.active {
-  background-color: hsl(var(--secondary));
-  color: hsl(var(--secondary-foreground));
-  box-shadow: 0 0 15px -3px rgba(34, 211, 238, 0.5);
-}
-
-/* Force TradingView Widget */
-.tradingview-widget-container,
-.tradingview-widget-container>div,
-.tradingview-widget-container iframe {
-  height: 100% !important;
-  width: 100% !important;
-  min-height: 100% !important;
-  display: block !important;
-}
-
-/* Dropdown Menu (User Requested) - Theme Adapted */
-.dropdown {
-  position: relative;
-  display: inline-block;
-}
-
-.dropdown-content {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  background-color: hsl(var(--popover));
-  border: 1px solid hsl(var(--border));
-  min-width: 160px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
-  border-radius: var(--radius);
-  z-index: 50;
-  overflow: hidden;
-}
-
-.dropdown:hover .dropdown-content {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.dropdown-content a {
-  color: hsl(var(--popover-foreground));
-  padding: 0.5rem 1rem;
-  text-decoration: none;
-  display: block;
-  font-size: 0.875rem;
-  transition: background-color 0.2s;
-}
-
-/* Dropdown CSS End */
-
-/* User Requested Neon Glass Card Effect (Market Page) */
-.neon-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.neon-card {
-  position: relative;
-  min-height: 250px;
-  /* Consistent height */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 10px;
-  /* Reduced margin for grid */
-  transition: 0.5s;
-  background: hsl(var(--card));
-  border-radius: 1rem;
-  overflow: hidden;
-  /* Contain pseudo-elements */
-}
-
-/* Skewed highlight effect */
-.neon-card::before {
-  content: ' ';
-  position: absolute;
-  top: 0;
-  left: 20px;
-  width: 50%;
-  height: 100%;
-  background: #fff;
-  border-radius: 8px;
-  transform: skewX(15deg);
-  transition: 0.5s;
-  opacity: 0.05;
-  /* Subtle default */
-  pointer-events: none;
-}
-
-.neon-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 20px;
-  width: 50%;
-  height: 100%;
-  background: #fff;
-  border-radius: 8px;
-  transform: skewX(15deg);
-  transition: 0.5s;
-  filter: blur(30px);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.neon-card:hover:before,
-.neon-card:hover:after {
-  transform: skewX(0deg);
-  left: 20px;
-  width: calc(100% - 40px);
-  opacity: 0.6;
-}
-
-/* Variant Gradients */
-.neon-card.variant-gold::before,
-.neon-card.variant-gold::after {
-  background: linear-gradient(315deg, #ffbc00, #ff0058);
-}
-
-.neon-card.variant-cyan::before,
-.neon-card.variant-cyan::after {
-  background: linear-gradient(315deg, #03a9f4, #ff0058);
-}
-
-.neon-card.variant-lime::before,
-.neon-card.variant-lime::after {
-  background: linear-gradient(315deg, #4dff03, #00d0ff);
-}
-
-/* Default Fallback */
-.neon-card.variant-default::before,
-.neon-card.variant-default::after {
-  background: linear-gradient(315deg, hsl(var(--primary)), hsl(var(--secondary)));
-}
-
-/* Content Wrapper inside card */
-.neon-card-content {
-  position: relative;
-  z-index: 10;
-  padding: 1.5rem;
-  background: rgba(var(--card), 0.5);
-  /* Semi-transparent */
-  backdrop-filter: blur(5px);
-  border-radius: 8px;
-  width: 100%;
-  /* Fill container */
-  height: 100%;
-  transition: 0.5s;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.neon-card:hover .neon-card-content {
-  background: rgba(0, 0, 0, 0.4);
-  /* Darken content slightly on hover */
-}
-
-/* Scanning Animation */
-@keyframes scan {
+@keyframes shimmer-sweep {
   0% {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-
-  50% {
-    opacity: 1;
+    left: -100%;
+    transform: translateX(-100%);
   }
 
   100% {
-    transform: translateY(100%);
+    left: 200%;
+    transform: translateX(200%);
+  }
+}
+
+@keyframes shimmer-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(4);
     opacity: 0;
   }
 }
 
-.animate-scan {
-  animation: scan 3s linear infinite;
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(255, 159, 28, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(255, 159, 28, 0.6);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    left: -100%;
+  }
+
+  100% {
+    left: 200%;
+  }
+}
+
+/* --- THIN SHINE ANIMATIONS --- */
+@keyframes shine-thin {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(calc(1200% / var(--shine-width, 8)));
+  }
+}
+
+@keyframes glint {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(calc(800% / var(--glint-width, 15)));
+  }
+}
+
+@keyframes sweep-line {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes edge-shine {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+/* Utility classes for thin shine */
+.animate-shine-thin {
+  animation: shine-thin var(--shine-duration, 800ms) linear infinite;
+}
+
+.animate-glint {
+  animation: glint var(--glint-duration, 2000ms) linear infinite;
+}
+
+.animate-sweep-line {
+  animation: sweep-line 600ms ease-in-out infinite;
+}
+
+.animate-edge-shine {
+  animation: edge-shine 2s ease-in-out infinite;
+}
+
+/* Preserve 3D */
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+/* Perspective utilities */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+/* Glow effects */
+.glow-primary {
+  box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.5);
+}
+
+.glow-primary-strong {
+  box-shadow: 0 0 30px -5px hsl(var(--primary) / 0.7);
+}
+
+/* Noise texture overlay */
+.noise-overlay {
+  position: relative;
+}
+
+.noise-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
 }

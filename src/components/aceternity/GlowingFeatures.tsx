@@ -1,49 +1,49 @@
 "use client";
 
-import { Box, Lock, Search, Settings, Sparkles, BarChart2, Zap, Shield, TrendingUp, DollarSign } from "lucide-react";
+import { Box, Lock, Search, Settings, Sparkles, BarChart2, Zap, Shield, TrendingUp, DollarSign, TrendingUpIcon, Activity, Brain, Clock } from "lucide-react";
 import { GlowingEffect } from "@/components/aceternity/GlowingEffect";
 
 export function GlowingFeatures() {
     return (
         <ul className="grid grid-cols-1 grid-rows-none gap-4 md:grid-cols-12 md:grid-rows-3 lg:gap-4 xl:max-h-[34rem] xl:grid-rows-2 w-full max-w-7xl mx-auto p-4">
-            {/* Feature 1: AI Analysis */}
+            {/* Feature 1: Crypto & Stocks */}
             <GridItem
                 area="md:[grid-area:1/1/2/7] xl:[grid-area:1/1/2/5]"
-                icon={<Sparkles className="h-4 w-4 text-black dark:text-neutral-400" />}
-                title="AI-Powered Analysis"
-                description="Our models analyze market sentiment and technical indicators in real-time."
+                icon={<DollarSign className="h-4 w-4 text-foreground" />}
+                title="Crypto & Stocks"
+                description="Real-time data from 40+ exchanges including Bitcoin, Ethereum, and Indian stocks."
             />
 
-            {/* Feature 2: Advanced Charts */}
+            {/* Feature 2: AI Predictions */}
             <GridItem
                 area="md:[grid-area:1/7/2/13] xl:[grid-area:2/1/3/5]"
-                icon={<BarChart2 className="h-4 w-4 text-black dark:text-neutral-400" />}
-                title="Pro-Level Charting"
-                description="Integrated TradingView charts with custom overlays and indicators."
+                icon={<Brain className="h-4 w-4 text-foreground" />}
+                title="AI Predictions"
+                description="Advanced neural networks analyze market patterns to predict trends."
             />
 
-            {/* Feature 3: Security */}
+            {/* Feature 3: Real-time Data */}
             <GridItem
                 area="md:[grid-area:2/1/3/7] xl:[grid-area:1/5/3/8]"
-                icon={<Shield className="h-4 w-4 text-black dark:text-neutral-400" />}
-                title="Bank-Grade Security"
-                description="Enterprise encryption ensuring your data is always safe."
+                icon={<Activity className="h-4 w-4 text-foreground" />}
+                title="Live Market Data"
+                description="Lightning-fast updates with sub-second latency across all markets."
             />
 
-            {/* Feature 4: Lightning Fast */}
+            {/* Feature 4: Price Alerts */}
             <GridItem
                 area="md:[grid-area:2/7/3/13] xl:[grid-area:1/8/2/13]"
-                icon={<Zap className="h-4 w-4 text-black dark:text-neutral-400" />}
-                title="50ms Latency"
-                description="Global edge network ensures you never miss a tick."
+                icon={<Clock className="h-4 w-4 text-foreground" />}
+                title="Smart Alerts"
+                description="Get notified instantly when prices hit your target or patterns emerge."
             />
 
-            {/* Feature 5: Real-time Data */}
+            {/* Feature 5: Technical Analysis */}
             <GridItem
                 area="md:[grid-area:3/1/4/13] xl:[grid-area:2/8/3/13]"
-                icon={<Search className="h-4 w-4 text-black dark:text-neutral-400" />}
-                title="Real-time Scanners"
-                description="Instant alerts for breakouts, volume spikes, and unusual activity."
+                icon={<TrendingUpIcon className="h-4 w-4 text-foreground" />}
+                title="Technical Analysis"
+                description="Professional charts with 100+ indicators and drawing tools."
             />
         </ul>
     );
@@ -59,25 +59,25 @@ interface GridItemProps {
 const GridItem = ({ area, icon, title, description }: GridItemProps) => {
     return (
         <li className={`min-h-[14rem] list-none ${area}`}>
-            <div className="relative h-full rounded-2xl border border-white/10 p-2 md:rounded-3xl md:p-3 bg-white/5 backdrop-blur-sm group overflow-hidden">
+            <div className="relative h-full rounded-2xl border border-border p-2 md:rounded-3xl md:p-3 bg-card/50 backdrop-blur-sm group overflow-hidden">
                 <GlowingEffect
                     spread={40}
                     glow={true}
                     disabled={false}
                     proximity={64}
                     inactiveZone={0.01}
-                    className="group-hover:opacity-100 opacity-0 transition-opacity duration-300"
+                    className="group-hover:opacity-100 opacity-0 transition-opacity duration-300 text-primary"
                 />
-                <div className="border-0.75 relative flex h-full flex-col justify-between gap-6 overflow-hidden rounded-xl p-6 md:p-6 dark:shadow-[0px_0px_27px_0px_#2D2D2D] bg-black/50 backdrop-blur-md z-10">
+                <div className="border-0.75 relative flex h-full flex-col justify-between gap-6 overflow-hidden rounded-xl p-6 md:p-6 shadow-xl bg-card z-10">
                     <div className="relative flex flex-1 flex-col justify-between gap-3">
-                        <div className="w-fit rounded-lg border border-gray-600 p-2 bg-black">
+                        <div className="w-fit rounded-lg border border-border p-2 bg-muted/20">
                             {icon}
                         </div>
                         <div className="space-y-3">
-                            <h3 className="-tracking-4 pt-0.5 font-sans text-xl/[1.375rem] font-semibold text-balance text-black md:text-2xl/[1.875rem] dark:text-white">
+                            <h3 className="-tracking-4 pt-0.5 font-sans text-xl/[1.375rem] font-semibold text-balance text-foreground md:text-2xl/[1.875rem]">
                                 {title}
                             </h3>
-                            <h2 className="font-sans text-sm/[1.125rem] text-black md:text-base/[1.375rem] dark:text-neutral-400 [&_b]:md:font-semibold [&_strong]:md:font-semibold">
+                            <h2 className="font-sans text-sm/[1.125rem] text-muted-foreground md:text-base/[1.375rem] [&_b]:md:font-semibold [&_strong]:md:font-semibold">
                                 {description}
                             </h2>
                         </div>
@@ -87,3 +87,4 @@ const GridItem = ({ area, icon, title, description }: GridItemProps) => {
         </li>
     );
 };
+
