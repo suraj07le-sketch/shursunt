@@ -14,6 +14,7 @@ import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { GlobalErrorSuppressor } from "@/components/ui/GlobalErrorSuppressor";
+import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 
 const outfit = Outfit({
     subsets: ['latin'],
@@ -53,6 +54,14 @@ export default async function LocaleLayout({
 
     return (
         <html lang={locale} suppressHydrationWarning>
+            <head>
+                <link rel="manifest" href="/manifest.json" />
+                <meta name="theme-color" content="#09090b" />
+                <meta name="apple-mobile-web-app-capable" content="yes" />
+                <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+                <meta name="apple-mobile-web-app-title" content="ShursunT" />
+                <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+            </head>
             <body className={`${outfit.className} antialiased`} suppressHydrationWarning>
                 <NextIntlClientProvider messages={messages}>
                     <NextTopLoader
@@ -78,6 +87,7 @@ export default async function LocaleLayout({
                         disableTransitionOnChange
                     >
                         <GlobalErrorSuppressor />
+                        <ServiceWorkerRegistration />
                         <AuthProvider>
                             {children}
                             <Toaster richColors position="bottom-right" theme="system" />
