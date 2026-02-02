@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import useSWR from "swr";
@@ -154,10 +155,19 @@ export default function PredictionsPage() {
         return local.toISOString().split('T')[0];
     });
 
-    const [activeTab, setActiveTab] = useState<'stock' | 'crypto'>('crypto');
+    const [activeTab, setActiveTab] = useState<'stock' | 'crypto'>('stock');
     const [isPolling, setIsPolling] = useState(false);
     const [pollProgress, setPollProgress] = useState(0);
     const [lastPredictionTime, setLastPredictionTime] = useState<number>(Date.now());
+
+    // Read tab from URL on mount
+    const searchParams = useSearchParams();
+    useEffect(() => {
+        const tabParam = searchParams.get('tab');
+        if (tabParam === 'stock' || tabParam === 'crypto') {
+            setActiveTab(tabParam);
+        }
+    }, [searchParams]);
 
     // SWR Hook for data fetching
     const { data: predictions, isLoading, mutate } = useSWR(
@@ -269,7 +279,7 @@ export default function PredictionsPage() {
                 <GridBackground />
             </div>
 
-            <div className="relative z-10 space-y-8 p-4 md:p-8 pb-20 max-w-7xl mx-auto">
+            <div className="relative z-10 space-y-6 p-1 md:p-8 pb-20 max-w-7xl mx-auto">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>

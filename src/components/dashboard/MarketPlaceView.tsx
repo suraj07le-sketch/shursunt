@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import useSWR from "swr";
 import { Coin, WatchlistItem } from "@/types";
 import MarketGrid from "./MarketGrid";
 import { Search } from "./Search";
@@ -25,6 +26,19 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
     const { user } = useAuth();
     const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
 
+    // Background Freshing with SWR
+    const { data: stockData } = useSWR('market-stocks', async () => {
+        const { getMarketData } = await import("@/lib/api");
+        return getMarketData('stock');
+    }, { fallbackData: initialStocks, refreshInterval: 120000 });
+
+    const { data: cryptoData } = useSWR('market-crypto', async () => {
+        const { getMarketData } = await import("@/lib/api");
+        return getMarketData('crypto');
+    }, { fallbackData: initialCrypto, refreshInterval: 120000 });
+
+    const currentData = assetType === 'stock' ? (stockData || initialStocks) : (cryptoData || initialCrypto);
+
     // Load watchlist IDs
     useEffect(() => {
         if (!user) return;
@@ -37,15 +51,13 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
         return () => window.removeEventListener('storage', loadList);
     }, [user]);
 
-    const currentData = assetType === 'stock' ? initialStocks : initialCrypto;
-
     // Apply filters
     // Pagination logic
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8; // 4 cols * 2 rows
 
     // Reset page when filter changes
-    const filteredData = currentData.filter(coin => {
+    const filteredData = currentData.filter((coin: Coin) => {
         const matchesSearch = coin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             coin.symbol.toLowerCase().includes(searchQuery.toLowerCase());
 

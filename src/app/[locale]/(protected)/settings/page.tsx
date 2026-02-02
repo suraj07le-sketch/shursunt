@@ -38,7 +38,7 @@ export default function SettingsPage() {
                 <GridBackground />
             </div>
 
-            <div className="relative z-10 max-w-6xl mx-auto p-6 md:p-8 space-y-8 pb-20">
+            <div className="relative z-10 max-w-6xl mx-auto p-2 md:p-8 space-y-8 pb-20">
                 {/* Header Section */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}

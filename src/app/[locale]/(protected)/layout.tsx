@@ -47,10 +47,10 @@ export default function DashboardLayout({
 
                 <main
                     className={cn(
-                        "flex-1 overflow-y-auto w-full transition-all duration-300 p-4 md:p-8 relative z-10 pt-20 md:pt-8 no-scrollbar md:ml-64"
+                        "flex-1 overflow-y-auto w-full transition-all duration-300 px-2 py-3 md:p-8 relative z-10 pt-20 md:pt-8 no-scrollbar md:ml-64"
                     )}
                 >
-                    <div className="glass-card rounded-3xl border border-white/10 shadow-2xl p-4 md:p-6 min-h-[calc(100vh-6rem)] md:min-h-full">
+                    <div className="glass-card rounded-2xl md:rounded-3xl border border-white/10 shadow-2xl px-3 py-4 md:p-6 min-h-[calc(100vh-6rem)] md:min-h-full">
                         {children}
                     </div>
                 </main>

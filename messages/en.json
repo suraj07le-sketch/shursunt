@@ -49,6 +49,9 @@
         "billing": "Billing",
         "settings": "Settings",
         "login": "Login",
+        "ipo": "IPO Dashboard",
+        "mutualFunds": "Mutual Funds",
+        "marketInsights": "Insights",
         "tagline": "Indian Stock Ecosystem"
     },
     "Dashboard": {

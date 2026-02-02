@@ -1,7 +1,8 @@
 import { Coin } from "@/types";
 import { ArrowUpRight, ArrowDownRight, Plus, Brain, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { LocalStorage } from "@/lib/storage";
 import AssetIcon from "./AssetIcon";
 import "crypto-icons/font.css";
@@ -22,7 +23,7 @@ interface MarketGridProps {
     onWatchlistChange?: () => void;
 }
 
-export default function MarketGrid({
+function MarketGridComponent({
     coins,
     onSelect,
     assetType,
@@ -30,6 +31,7 @@ export default function MarketGrid({
     onWatchlistChange
 }: MarketGridProps) {
     const { user } = useAuth();
+    const router = useRouter();
     const [watchlistIds, setWatchlistIds] = useState<Set<string>>(initialWatchlistIds || new Set());
 
     useEffect(() => {
@@ -133,10 +135,14 @@ export default function MarketGrid({
 
                                                             if (response.ok) {
                                                                 toast.success(`Prediction requested for ${coin.name}!`);
-                                                                // Trigger polling if applicable
-                                                                if (typeof window !== 'undefined' && (window as any).triggerPredictionPolling) {
-                                                                    (window as any).triggerPredictionPolling();
-                                                                }
+                                                                // Navigate to predictions page with the correct tab
+                                                                router.push(`/predictions?tab=${assetType}`);
+                                                                // Trigger polling after navigation
+                                                                setTimeout(() => {
+                                                                    if (typeof window !== 'undefined' && (window as any).triggerPredictionPolling) {
+                                                                        (window as any).triggerPredictionPolling();
+                                                                    }
+                                                                }, 500);
                                                             } else {
                                                                 toast.error("Failed to trigger prediction.");
                                                             }
@@ -237,3 +243,6 @@ export default function MarketGrid({
         </div>
     );
 }
+
+// Memoize to prevent re-renders when parent state changes
+export default memo(MarketGridComponent);

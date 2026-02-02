@@ -483,3 +483,24 @@
   opacity: 0.03;
   pointer-events: none;
 }
+
+/* --- MARQUEE ANIMATION --- */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee linear infinite;
+}
+
+/* GPU Performance Optimizations */
+.transform-gpu {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}

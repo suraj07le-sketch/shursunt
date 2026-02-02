@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Coins, Star, Activity, LogOut, TrendingUp, Store, X, CreditCard } from "lucide-react";
+import { LayoutDashboard, Coins, Star, Activity, LogOut, TrendingUp, Store, X, CreditCard, Layers } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ThemeSelector } from "@/components/ui/ThemeSelector";
 import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
@@ -37,6 +37,8 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         { name: t('stocks'), href: "/stocks", icon: TrendingUp },
         { name: t('crypto'), href: "/crypto", icon: Coins },
         { name: t('watchlist'), href: "/watchlist", icon: Star },
+        { name: t('ipo'), href: "/ipo", icon: TrendingUp },
+        { name: t('mutualFunds'), href: "/mutual-funds", icon: Layers },
         { name: t('predictions'), href: "/predictions", icon: Activity },
         { name: t('billing'), href: "/billing", icon: CreditCard },
     ], [t]);

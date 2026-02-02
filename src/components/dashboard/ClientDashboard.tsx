@@ -10,6 +10,9 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { SolarisIcon } from "@/components/ui/SolarisIcon";
 import { useTranslations } from "next-intl";
+import { MarketIndices } from "./MarketIndices";
+import { MarketActivityBento } from "./MarketActivityBento";
+import { HighConvictionPanel } from "./HighConvictionPanel";
 
 // --- 3D Tilt Card Component ---
 import AssetIcon from "./AssetIcon";
@@ -148,14 +151,14 @@ export default function ClientDashboard({ initialData }: { initialData: Coin[] }
         show: {
             opacity: 1,
             transition: {
-                staggerChildren: 0.1
+                staggerChildren: 0.03 // Faster stagger for snappier feel
             }
         }
     };
 
     const itemVariants = {
-        hidden: { opacity: 0, y: 20 },
-        show: { opacity: 1, y: 0, transition: { type: "spring" as const, bounce: 0.4 } }
+        hidden: { opacity: 0, y: 10 },
+        show: { opacity: 1, y: 0, transition: { type: "tween" as const, duration: 0.2 } }
     };
 
     return (
@@ -181,6 +184,11 @@ export default function ClientDashboard({ initialData }: { initialData: Coin[] }
                     <div className="pill-tab active">{t('overview')}</div>
                     <div className="pill-tab">{t('liveMarket')}</div>
                 </div>
+            </motion.div>
+
+            {/* Market Indices (Nifty 50 & Sensex) */}
+            <motion.div variants={itemVariants}>
+                <MarketIndices />
             </motion.div>
 
             {/* 1. Portfolio Stats Cards - Solaris Style */}
@@ -283,11 +291,19 @@ export default function ClientDashboard({ initialData }: { initialData: Coin[] }
                 </motion.div>
             </div>
 
+            {/* Advanced Market Activity (Trending & Most Active) */}
+            <motion.div variants={itemVariants} className="mt-4">
+                <MarketActivityBento />
+            </motion.div>
+
 
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 {/* 2. Today's Predictions */}
                 <motion.div variants={itemVariants} className="space-y-5">
+                    {/* Unified AI High Conviction Picks */}
+                    <HighConvictionPanel />
+
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
                         <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2 text-foreground">
                             <BrainCircuit className="w-5 h-5 md:w-6 md:h-6 text-primary" />

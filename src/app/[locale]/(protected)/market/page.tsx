@@ -1,5 +1,6 @@
 import { getMarketData } from "@/lib/api";
 import MarketPlaceView from "@/components/dashboard/MarketPlaceView";
+import { TrendingMarquee } from "@/components/dashboard/TrendingMarquee";
 
 // export const dynamic = 'force-dynamic';
 // export const revalidate = 0;
@@ -13,9 +14,12 @@ export default async function MarketPage() {
     ]);
 
     return (
-        <MarketPlaceView
-            initialStocks={stocks}
-            initialCrypto={crypto}
-        />
+        <div className="space-y-6">
+            <TrendingMarquee />
+            <MarketPlaceView
+                initialStocks={stocks}
+                initialCrypto={crypto}
+            />
+        </div>
     );
 }
