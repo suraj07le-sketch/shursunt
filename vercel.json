@@ -22,11 +22,5 @@
                 }
             ]
         }
-    ],
-    "crons": [
-        {
-            "path": "/api/cron/predict-stock",
-            "schedule": "0 */4 * * *"
-        }
     ]
 }
