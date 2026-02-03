@@ -73,22 +73,8 @@ export default function CoinCard({ coin }: CoinCardProps) {
         setPredicting(true);
 
         try {
-            // Trigger Webhook
-            await fetch("https://studio.pucho.ai/api/v1/webhooks/gWOr6DCFfy2q0lrbM4Bz8", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    coin: coin.symbol.toUpperCase(), // Clean symbol
-                    timeframe: "4h",
-                    userId: user.id
-                })
-            });
-
-            // Wait 3 seconds
-            await new Promise(resolve => setTimeout(resolve, 3000));
-
-            // Redirect
-            router.push("/predictions");
+            // Redirect immediately with query param to trigger prediction on destination
+            router.push(`/predictions?predict=${coin.symbol.toUpperCase()}&type=${coin.asset_type || 'crypto'}`);
 
         } catch (err) {
             console.error("Prediction Error:", err);

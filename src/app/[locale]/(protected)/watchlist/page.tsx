@@ -30,44 +30,15 @@ function WatchlistRow({ item, onDelete }: { item: WatchlistItem; onDelete: (id: 
         setPredicting(true);
 
         try {
-            if (item.asset_type === 'stock') {
-                // Trigger Stock Webhook
-                await fetch("https://studio.pucho.ai/api/v1/webhooks/riBtCb2IsVK15GnLlwLUa", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        stockname: item.coin_data.symbol.toUpperCase(),
-                        timeframe: timeframe,
-                        userId: user.id
-                    })
-                });
-            } else {
-                // Trigger Crypto Webhook
-                await fetch("https://studio.pucho.ai/api/v1/webhooks/gWOr6DCFfy2q0lrbM4Bz8", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        coin: item.coin_data.symbol.toUpperCase(),
-                        timeframe: timeframe,
-                        userId: user.id
-                    })
-                });
-            }
+            // Redirect to predictions page with params to trigger generation there
+            const symbol = item.coin_data.symbol.toUpperCase();
+            const type = item.asset_type || 'crypto';
 
-            // Wait 3 seconds before redirecting
-            await new Promise(resolve => setTimeout(resolve, 3000));
-
-            // Trigger polling on the predictions page
-            if (typeof window !== 'undefined' && (window as any).triggerPredictionPolling) {
-                (window as any).triggerPredictionPolling();
-            }
-
-            // Redirect
-            router.push("/predictions");
-            toast.success("Prediction started!");
+            router.push(`/predictions?predict=${symbol}&type=${type}&timeframe=${timeframe}`);
+            toast.success(`Navigating to predictions for ${symbol}...`);
 
         } catch (err) {
-            console.error("Prediction Error:", err);
+            console.error("Prediction Navigation Error:", err);
             toast.error("Failed to start prediction");
         } finally {
             setPredicting(false);

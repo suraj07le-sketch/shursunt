@@ -6,11 +6,10 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import useSWR from "swr";
 import AdvancedDateSelector from "@/components/dashboard/AdvancedDateSelector";
-import { PredictionsLoader } from "@/components/ui/PredictionsLoader";
 import { PredictionCard } from "@/components/dashboard/PredictionCard";
 import { GridBackground } from "@/components/ui/GridBackground";
 import { motion } from "framer-motion";
-import { BrainCircuit, RefreshCw, Clock } from "lucide-react";
+import { BrainCircuit, RefreshCw, Clock, Sparkles, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -19,7 +18,6 @@ import { toast } from "sonner";
 function PredictionSkeleton() {
     return (
         <div className="flex flex-col p-6 rounded-3xl overflow-hidden bg-card/40 backdrop-blur-xl border border-border/50 space-y-4">
-            {/* Header */}
             <div className="flex justify-between items-start">
                 <div className="space-y-3">
                     <div className="flex items-center gap-3">
@@ -36,8 +34,6 @@ function PredictionSkeleton() {
                     <Skeleton className="h-10 w-10 rounded-xl" />
                 </div>
             </div>
-
-            {/* Prices */}
             <div className="grid grid-cols-2 gap-px bg-border/20 rounded-2xl overflow-hidden">
                 <div className="bg-muted/30 p-4 space-y-2">
                     <Skeleton className="h-3 w-12" />
@@ -48,8 +44,6 @@ function PredictionSkeleton() {
                     <Skeleton className="h-6 w-24" />
                 </div>
             </div>
-
-            {/* Target Date */}
             <div className="flex justify-between">
                 <Skeleton className="h-3 w-16" />
                 <Skeleton className="h-4 w-20" />
@@ -58,35 +52,26 @@ function PredictionSkeleton() {
     );
 }
 
-// Robust fetcher function with correct column handling and normalization
+// Robust fetcher function
 const fetcher = async ([userId, date, tab]: [string, string, 'stock' | 'crypto']) => {
-    if (!userId) {
-        console.log("[Fetcher] No user ID provided, returning empty array");
-        return [];
-    }
+    if (!userId) return [];
 
     const tableName = tab === 'stock' ? 'stock_predictions' : 'crypto_predictions';
-    console.log(`[Fetcher] Fetching ${tableName} for user ${userId} on date ${date}`);
 
     try {
-        // Fetch with explicit user_id filter (RLS will enforce this)
         const { data, error } = await supabase
             .from(tableName as "stock_predictions" | "crypto_predictions")
             .select("*")
-            .eq("user_id", userId)
+            .or(`user_id.eq.${userId},user_id.eq.00000000-0000-0000-0000-000000000000`)
             .order('created_at', { ascending: false })
             .limit(100);
 
         if (error) {
-            console.error("[Fetcher] Supabase Error:", error);
-            throw error;
-        }
-
-        console.log(`[Fetcher] Raw data count from DB: ${data?.length || 0}`);
-        if (data && data.length > 0) {
-            console.log("[Fetcher] Sample data:", JSON.stringify(data[0], null, 2));
-        } else {
-            console.log("[Fetcher] No data found - checking if table exists and has data");
+            // Suppress AbortError logs (happens during hot reload)
+            if (error.message && !error.message.includes('AbortError')) {
+                console.error("[Fetcher] Supabase Error:", error);
+            }
+            return [];
         }
 
         // Normalize fields
@@ -98,56 +83,53 @@ const fetcher = async ([userId, date, tab]: [string, string, 'stock' | 'crypto']
             created_at: item.created_at
         }));
 
-        // Filter by date (or show all if no date match)
+        // Filter by date
         const filtered = normalized.filter((item: any) => {
             const targetDateStr = item.predicted_time || item.created_at;
-            const createdDateStr = item.created_at;
-
-            const matchesDate = (dStr: string) => {
-                if (!dStr) return false;
-                try {
-                    const d = new Date(dStr);
-                    if (!isNaN(d.getTime())) {
-                        const itemDate = d.toISOString().split('T')[0];
-                        if (itemDate === date) return true;
-                    }
-                    const datePart = dStr.includes(',') ? dStr.split(',')[0] : dStr.split(' ')[0];
-                    if (datePart.includes('/') || datePart.includes('-')) {
-                        const separator = datePart.includes('/') ? '/' : '-';
-                        const parts = datePart.split(separator);
-                        if (parts.length === 3) {
-                            let year, month, day;
-                            if (parts[0].length === 4) {
-                                year = parts[0]; month = parts[1]; day = parts[2];
-                            } else {
-                                day = parts[0]; month = parts[1]; year = parts[2];
-                            }
-                            const reconstructed = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                            if (reconstructed === date) return true;
-                        }
-                    }
-                } catch (e) { return false; }
-                return false;
-            };
-            return matchesDate(targetDateStr) || matchesDate(createdDateStr);
+            if (!targetDateStr) return false;
+            try {
+                const targetDate = new Date(targetDateStr);
+                const filterDate = new Date(date);
+                const targetYMD = targetDate.toISOString().split('T')[0];
+                const filterYMD = filterDate.toISOString().split('T')[0];
+                if (targetYMD === filterYMD) return true;
+                const diffTime = Math.abs(targetDate.getTime() - filterDate.getTime());
+                const diffHours = diffTime / (1000 * 60 * 60);
+                return diffHours < 24;
+            } catch (e) { return false; }
         });
 
-        // Return only filtered results
-        const result = filtered;
-        console.log(`[Fetcher] Final data count: ${result.length}`);
-        return result;
+        // Group by stock/crypto name and keep only the most recent prediction per day
+        const grouped = new Map<string, any>();
+        filtered.forEach((item: any) => {
+            const key = tab === 'stock' ? item.stock_name : (item.coin_name || item.coin);
+            const existing = grouped.get(key);
+
+            if (!existing) {
+                grouped.set(key, item);
+            } else {
+                // Keep the most recent prediction
+                const existingTime = new Date(existing.created_at).getTime();
+                const currentTime = new Date(item.created_at).getTime();
+                if (currentTime > existingTime) {
+                    grouped.set(key, item);
+                }
+            }
+        });
+
+        return Array.from(grouped.values());
     } catch (err: any) {
-        console.error("[Fetcher] Unexpected error:", err);
+        if (err.name !== 'AbortError' && err.message !== 'AbortError: signal is aborted without reason') {
+            console.error("[Fetcher] Unexpected error:", err);
+        }
         return [];
     }
 };
 
 export default function PredictionsPage() {
     const { user } = useAuth();
-    // Force refresh log
-    useEffect(() => { console.log("PredictionsPage Loaded v2"); }, []);
+    const searchParams = useSearchParams();
 
-    // Default to today's date in local time
     const [selectedDate, setSelectedDate] = useState(() => {
         const now = new Date();
         const offset = now.getTimezoneOffset();
@@ -159,13 +141,26 @@ export default function PredictionsPage() {
     const [isPolling, setIsPolling] = useState(false);
     const [pollProgress, setPollProgress] = useState(0);
     const [lastPredictionTime, setLastPredictionTime] = useState<number>(Date.now());
+    const [isGenerating, setIsGenerating] = useState(false);
 
-    // Read tab from URL on mount
-    const searchParams = useSearchParams();
+    // Manual prediction form state
+    const [predictionInput, setPredictionInput] = useState('');
+    const [isInputVisible, setIsInputVisible] = useState(false);
+
+    // Handle URL params for automatic prediction
     useEffect(() => {
         const tabParam = searchParams.get('tab');
         if (tabParam === 'stock' || tabParam === 'crypto') {
             setActiveTab(tabParam);
+        }
+
+        const predictSymbol = searchParams.get('predict');
+        const predictType = searchParams.get('type') || (activeTab === 'crypto' ? 'crypto' : 'stock');
+        const predictTimeframe = searchParams.get('timeframe') || '4h';
+
+        if (predictSymbol) {
+            console.log("Triggering prediction for:", predictSymbol, "Type:", predictType, "Timeframe:", predictTimeframe);
+            generatePrediction(predictSymbol, predictType as 'stock' | 'crypto', predictTimeframe);
         }
     }, [searchParams]);
 
@@ -174,10 +169,10 @@ export default function PredictionsPage() {
         user ? [user.id, selectedDate, activeTab] : null,
         fetcher,
         {
-            revalidateOnFocus: true, // Refresh when window gains focus
-            revalidateOnMount: true, // Always refresh on component mount
-            dedupingInterval: 0, // Allow frequent polling
-            refreshInterval: isPolling ? 2000 : 0, // Poll every 2 seconds when active
+            revalidateOnFocus: true,
+            revalidateOnMount: true,
+            dedupingInterval: 0,
+            refreshInterval: isPolling ? 2000 : 0,
             suspense: false
         }
     );
@@ -187,7 +182,6 @@ export default function PredictionsPage() {
         if (isPolling && predictions && predictions.length > 0) {
             const hasNew = predictions.some((p: any) => {
                 const pTime = new Date(p.created_at).getTime();
-                // Allow a small buffer (e.g., created recently) or strictly after start
                 return pTime > lastPredictionTime;
             });
 
@@ -198,15 +192,15 @@ export default function PredictionsPage() {
         }
     }, [predictions, isPolling, lastPredictionTime]);
 
-    // Polling timer: poll for 1 minute (60 seconds) after trigger
+    // Polling timer
     useEffect(() => {
         if (!isPolling) {
             setPollProgress(0);
             return;
         }
 
-        const totalDuration = 60000; // 1 minute
-        const interval = 100; // Update progress every 100ms
+        const totalDuration = 60000;
+        const interval = 100;
         const startTime = Date.now();
 
         const timer = setInterval(() => {
@@ -222,59 +216,63 @@ export default function PredictionsPage() {
         return () => clearInterval(timer);
     }, [isPolling]);
 
-    // Function to trigger polling from outside
-    const triggerPolling = useCallback(() => {
-        setLastPredictionTime(Date.now());
-        setIsPolling(true);
-    }, []);
-
-    // Expose polling trigger via window (for cross-component communication)
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            (window as any).triggerPredictionPolling = triggerPolling;
+    // Generate prediction function
+    const generatePrediction = async (symbol: string, type: 'stock' | 'crypto', timeframe: string = '4h') => {
+        if (!user) {
+            toast.error("Please login to generate predictions");
+            return;
         }
-    }, [triggerPolling]);
 
-    // Setup Realtime Subscription to update SWR cache
-    // We use a useEffect to manage the subscription lifecycle
-    useEffect(() => {
-        if (!user) return;
+        setIsGenerating(true);
+        setIsPolling(true);
+        setIsInputVisible(false);
 
-        const channel = supabase
-            .channel('predictions-realtime')
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'stock_predictions', filter: `user_id=eq.${user.id}` },
-                (payload: any) => {
-                    // Check if it belongs to current view
-                    const predDate = new Date(payload.new.prediction_time_ist || payload.new.predicted_time || payload.new.created_at).toISOString().split('T')[0];
-                    if (predDate === selectedDate && activeTab === 'stock') {
-                        mutate((currentData: any) => [payload.new, ...(currentData || [])], false);
-                    }
-                }
-            )
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'crypto_predictions', filter: `user_id=eq.${user.id}` },
-                (payload: any) => {
-                    const predDate = new Date(payload.new.prediction_time_ist || payload.new.predicted_time || payload.new.created_at).toISOString().split('T')[0];
-                    if (predDate === selectedDate && activeTab === 'crypto') {
-                        mutate((currentData: any) => [payload.new, ...(currentData || [])], false);
-                    }
-                }
-            )
-            .subscribe();
+        // Switch tab if needed
+        if (type === 'crypto' && activeTab !== 'crypto') setActiveTab('crypto');
+        if (type === 'stock' && activeTab !== 'stock') setActiveTab('stock');
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user, selectedDate, activeTab, mutate]);
+        try {
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    coinId: symbol,
+                    coinName: symbol,
+                    timeframe: timeframe,
+                    type: type
+                })
+            });
 
+            const data = await response.json();
 
+            if (data.success) {
+                toast.success(`Prediction generated for ${symbol}!`);
+                setLastPredictionTime(Date.now());
+                // Refresh data
+                mutate();
+            } else {
+                toast.error(`Prediction failed: ${data.error || 'Unknown error'}`);
+            }
+        } catch (err) {
+            toast.error("Failed to generate prediction");
+            console.error(err);
+        } finally {
+            setIsGenerating(false);
+            setIsPolling(false);
+        }
+    };
+
+    // Handle manual prediction submission
+    const handleManualPrediction = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (predictionInput.trim()) {
+            generatePrediction(predictionInput.trim(), activeTab as 'stock' | 'crypto');
+            setPredictionInput('');
+        }
+    };
 
     return (
         <div className="relative min-h-screen w-full font-sans">
-            {/* Background Layer */}
             <div className="fixed inset-0 z-0 pointer-events-none">
                 <GridBackground />
             </div>
@@ -293,7 +291,6 @@ export default function PredictionsPage() {
                             )}
                         </h1>
 
-                        {/* Polling Progress Bar */}
                         {isPolling && (
                             <div className="mt-4 space-y-2">
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -314,7 +311,6 @@ export default function PredictionsPage() {
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-card/40 backdrop-blur-md p-2 rounded-2xl border border-border/50 shadow-sm">
                         {/* Asset Type Tabs */}
-                        {/* Asset Type Tabs Segmented Control */}
                         <div className="flex gap-1 bg-black/5 dark:bg-black/20 p-1 rounded-xl border border-black/5 dark:border-white/5">
                             <button
                                 onClick={() => setActiveTab('stock')}
@@ -340,6 +336,7 @@ export default function PredictionsPage() {
                             </button>
                         </div>
 
+
                         {/* Date Filter */}
                         <AdvancedDateSelector
                             selectedDate={selectedDate}
@@ -349,19 +346,19 @@ export default function PredictionsPage() {
                 </div>
 
                 {/* Content Section */}
-                {isLoading ? (
+                {isLoading || isGenerating || isPolling ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[...Array(6)].map((_, i) => (
                             <PredictionSkeleton key={i} />
                         ))}
                     </div>
-                ) : predictions?.length > 0 ? (
+                ) : (predictions?.length ?? 0) > 0 ? (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                     >
-                        {predictions.map((pred: any) => (
+                        {(predictions ?? []).map((pred: any) => (
                             <PredictionCard key={pred.id} pred={pred} isStock={activeTab === 'stock'} />
                         ))}
                     </motion.div>
@@ -374,7 +371,13 @@ export default function PredictionsPage() {
                         <p className="text-muted-foreground/50 mt-2 max-w-sm">
                             AI has not generated any {activeTab} predictions for {selectedDate}.
                         </p>
-
+                        <button
+                            onClick={() => window.location.href = '/watchlist'}
+                            className="mt-6 flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold transition-all duration-300"
+                        >
+                            <Plus className="w-5 h-5" />
+                            Generate Your First Prediction
+                        </button>
                     </div>
                 )}
             </div>

@@ -30,12 +30,12 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
     const { data: stockData } = useSWR('market-stocks', async () => {
         const { getMarketData } = await import("@/lib/api");
         return getMarketData('stock');
-    }, { fallbackData: initialStocks, refreshInterval: 120000 });
+    }, { fallbackData: initialStocks, refreshInterval: 60000, revalidateOnMount: true, revalidateOnFocus: true });
 
     const { data: cryptoData } = useSWR('market-crypto', async () => {
         const { getMarketData } = await import("@/lib/api");
         return getMarketData('crypto');
-    }, { fallbackData: initialCrypto, refreshInterval: 120000 });
+    }, { fallbackData: initialCrypto, refreshInterval: 60000, revalidateOnMount: true, revalidateOnFocus: true });
 
     const currentData = assetType === 'stock' ? (stockData || initialStocks) : (cryptoData || initialCrypto);
 

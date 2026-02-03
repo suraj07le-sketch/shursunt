@@ -1,17 +1,26 @@
 import axios from "axios";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Architect, Trainer } from "synaptic";
 
-// Supabase Config
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://hhcpczniwlirkljbigcl.supabase.co";
+// ============================
+// CONFIG
+// ============================
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-    auth: { persistSession: false },
-});
+// Only create Supabase client if configuration exists
+let supabase: SupabaseClient | null = null;
+if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+        auth: { persistSession: false },
+    });
+} else {
+    console.warn("[Prediction] Supabase not configured - models and predictions will not be saved to database");
+}
 
 // Technical Indicators
 const calculateEMA = (prices: number[], period: number) => {
+    if (prices.length === 0) return 0;
     const k = 2 / (period + 1);
     let ema = prices[0];
     for (let i = 1; i < prices.length; i++) {
@@ -21,6 +30,7 @@ const calculateEMA = (prices: number[], period: number) => {
 };
 
 const calculateRSI = (prices: number[], period = 14) => {
+    if (prices.length < period + 1) return 50;
     let gains = 0;
     let losses = 0;
     for (let i = prices.length - period; i < prices.length; i++) {
@@ -42,42 +52,43 @@ const calculateMACD = (prices: number[]) => {
 };
 
 const calculateATR = (klines: any[], period = 14) => {
+    if (klines.length < period) return 0;
     const trs = klines.slice(-period).map((k: any) => {
         const h = Number(k[2]);
         const l = Number(k[3]);
-        const pc = Number(k[4]); // simplified
+        const pc = Number(k[4]);
         return Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
     });
-    return trs.reduce((a, b) => a + b, 0) / period;
+    return trs.reduce((a: number, b: number) => a + b, 0) / period;
 };
 
-// Persistence Helpers
+// Persistence Helpers (safe even without Supabase)
 const saveModel = async (symbol: string, network: any, confidence: number) => {
+    if (!supabase) return;
     try {
         const modelData = network.toJSON();
-        const { error } = await supabase.from("prediction_models").upsert({
+        await (supabase as SupabaseClient).from("prediction_models").upsert({
             symbol,
             model_data: modelData,
             confidence,
             updated_at: new Date().toISOString(),
         }, { onConflict: 'symbol' });
-
-        if (error && error.code !== '42P01') console.error("Error saving model:", error.message);
     } catch (err) {
-        console.error("Critical error in saveModel:", err);
+        console.error("Error saving model:", err);
     }
 };
 
 const loadModel = async (symbol: string) => {
+    if (!supabase) return null;
     try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as SupabaseClient)
             .from("prediction_models")
             .select("model_data, confidence, updated_at")
             .eq("symbol", symbol)
             .single();
 
         if (error) return null;
-        if (Date.now() - new Date(data.updated_at).getTime() > 12 * 3600000) return null; // 12h expiry
+        if (Date.now() - new Date(data.updated_at).getTime() > 12 * 3600000) return null;
         return data;
     } catch (err) {
         return null;
@@ -114,6 +125,12 @@ export async function runProPrediction(coin: string, timeframe: string = "4h", u
         ]);
 
         const klines4h = res4h.data;
+        
+        // Validate data
+        if (!klines4h || !Array.isArray(klines4h) || klines4h.length < 100) {
+            return { success: false, error: "Insufficient market data for prediction" };
+        }
+        
         const closes4h = klines4h.map((k: any) => Number(k[4]));
         const volumes4h = klines4h.map((k: any) => Number(k[5]));
         const currentPrice = closes4h[closes4h.length - 1];
@@ -133,28 +150,40 @@ export async function runProPrediction(coin: string, timeframe: string = "4h", u
         const volAvg = volumes4h.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20;
         const volDelta = volumes4h[volumes4h.length - 1] / volAvg;
 
+        // 3. Model 1: Neural Network (Synaptic)
+        let network: any;
+        const saved = await loadModel(symbol);
+        
+        if (saved && saved.model_data) {
+            try {
+                network = (Architect.Perceptron as any).fromJSON(saved.model_data);
+            } catch (e) {
+                console.warn("Failed to load saved model, creating new one");
+                network = new Architect.Perceptron(4, 12, 6, 1);
+            }
+        } else {
+            network = new Architect.Perceptron(4, 12, 6, 1);
+        }
+
+        // Prepare training data
         const trainingSet = [];
-        for (let i = 100; i < closes4h.length - 1; i++) {
+        const minTrainingIdx = Math.max(100, 50 + 14 + 12);
+        for (let i = minTrainingIdx; i < closes4h.length - 1; i++) {
             const win = closes4h.slice(i - 50, i + 1);
             const wMax = Math.max(...win);
             const wMin = Math.min(...win);
             const norm = (v: number) => (v - wMin) / (wMax - wMin || 1);
 
             trainingSet.push({
-                input: [norm(closes4h[i]), calculateRSI(win.slice(-14)) / 100, calculateMACD(win) / (wMax * 0.01), volDelta],
+                input: [norm(closes4h[i]), calculateRSI(win.slice(-14)) / 100, calculateMACD(win) / (wMax * 0.01 || 1), volDelta],
                 output: [norm(closes4h[i + 1])]
             });
         }
 
-        // 3. Model 1: Neural Network (Synaptic)
-        let network: any;
-        const saved = await loadModel(symbol);
-        if (saved) {
-            network = (Architect.Perceptron as any).fromJSON(saved.model_data);
-        } else {
-            network = new Architect.Perceptron(4, 12, 6, 1);
+        // Train if we have enough data
+        if (trainingSet.length > 0) {
             const trainer = new Trainer(network);
-            await trainer.train(trainingSet, { rate: 0.01, iterations: 1000, error: 0.001 });
+            await trainer.train(trainingSet, { rate: 0.01, iterations: 500, error: 0.001 });
             await saveModel(symbol, network, 88);
         }
 
@@ -164,7 +193,7 @@ export async function runProPrediction(coin: string, timeframe: string = "4h", u
         const forecast = network.activate([
             (currentPrice - wMinEnd) / (wMaxEnd - wMinEnd || 1),
             calculateRSI(winEnd.slice(-14)) / 100,
-            calculateMACD(winEnd) / (wMaxEnd * 0.01),
+            calculateMACD(winEnd) / (wMaxEnd * 0.01 || 1),
             volDelta
         ]);
         const predPrice = forecast[0] * (wMaxEnd - wMinEnd) + wMinEnd;
@@ -209,7 +238,14 @@ export async function runProPrediction(coin: string, timeframe: string = "4h", u
             predicted_time_ist: targetTime.toISOString()
         };
 
-        await supabase.from("crypto_predictions").insert([result]);
+        // Save to database if Supabase is configured
+        if (supabase) {
+            try {
+                await (supabase as SupabaseClient).from("crypto_predictions").insert([result]);
+            } catch (dbError) {
+                console.warn("Failed to save prediction to database:", dbError);
+            }
+        }
 
         return {
             success: true,
@@ -226,6 +262,7 @@ export async function runProPrediction(coin: string, timeframe: string = "4h", u
         };
 
     } catch (err: any) {
-        return { success: false, error: err.message };
+        console.error("Prediction error:", err);
+        return { success: false, error: err.message || "Unknown error occurred" };
     }
 }

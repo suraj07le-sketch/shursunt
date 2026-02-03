@@ -43,6 +43,25 @@ function MarketGridComponent({
         }
     }, [initialWatchlistIds, user]);
 
+    // Generate prediction using local API
+    const handlePrediction = useCallback(async (coin: Coin) => {
+        if (!user) {
+            toast.error("Please login to use AI features.");
+            return;
+        }
+
+        toast.loading(`Generating prediction for ${coin.name}...`);
+
+        try {
+            // Redirect to predictions page to trigger generation
+            router.push(`/predictions?predict=${coin.id}&type=${assetType}&timeframe=4h`);
+            toast.success(`Navigating to predictions for ${coin.name}...`);
+        } catch (err) {
+            console.error("Prediction Navigation Error:", err);
+            toast.error("Failed to navigate to prediction page.");
+        }
+    }, [user, assetType, router]);
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {coins.map((coin) => {
@@ -67,13 +86,11 @@ function MarketGridComponent({
                                 spotlightColor="hsl(var(--primary) / 0.15)"
                                 fillColor="hsl(var(--primary) / 0.05)"
                             >
-                                {/* Hover Gradient Overlay */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-3xl" />
 
                                 <div className="relative z-10 flex flex-col h-full justify-between gap-4">
                                     {/* Top Row: Info & Actions */}
                                     <div className="flex justify-between items-start gap-2 w-full">
-                                        {/* Left: Logo & Name */}
                                         <div className="flex gap-3 md:gap-4 items-center min-w-0">
                                             <div className="relative">
                                                 <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-card/50 flex items-center justify-center shadow-[0_0_15px_rgba(var(--primary),0.2)] group-hover:shadow-[0_0_25px_rgba(var(--primary),0.4)] transition-shadow duration-300">
@@ -83,7 +100,6 @@ function MarketGridComponent({
                                                         type={assetType}
                                                     />
                                                 </div>
-                                                {/* Animated ring on hover */}
                                                 <div className="absolute inset-0 rounded-full border-2 border-primary/30 opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300" />
                                             </div>
                                             <div className="min-w-0 flex-1">
@@ -107,50 +123,10 @@ function MarketGridComponent({
                                             >
                                                 <button
                                                     className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-black transition-all duration-300 shadow-sm z-20 hover:scale-110 hover:shadow-lg hover:shadow-primary/30"
-                                                    title={assetType === 'crypto' ? "AI Prediction" : "Predictions only for Crypto"}
-                                                    onClick={async (e) => {
+                                                    title="AI Prediction"
+                                                    onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (assetType !== 'crypto') {
-                                                            toast.error("AI Predictions are currently only available for Crypto assets.");
-                                                            return;
-                                                        }
-                                                        if (!user) {
-                                                            toast.error("Please login to use AI features.");
-                                                            return;
-                                                        }
-
-                                                        try {
-                                                            e.currentTarget.style.transform = 'scale(0.9)';
-
-                                                            // Use direct webhook for Crypto (same as Watchlist)
-                                                            const response = await fetch("https://studio.pucho.ai/api/v1/webhooks/gWOr6DCFfy2q0lrbM4Bz8", {
-                                                                method: "POST",
-                                                                headers: { "Content-Type": "application/json" },
-                                                                body: JSON.stringify({
-                                                                    coin: coin.symbol.toUpperCase(),
-                                                                    timeframe: "4h",
-                                                                    userId: user.id
-                                                                })
-                                                            });
-
-                                                            if (response.ok) {
-                                                                toast.success(`Prediction requested for ${coin.name}!`);
-                                                                // Navigate to predictions page with the correct tab
-                                                                router.push(`/predictions?tab=${assetType}`);
-                                                                // Trigger polling after navigation
-                                                                setTimeout(() => {
-                                                                    if (typeof window !== 'undefined' && (window as any).triggerPredictionPolling) {
-                                                                        (window as any).triggerPredictionPolling();
-                                                                    }
-                                                                }, 500);
-                                                            } else {
-                                                                toast.error("Failed to trigger prediction.");
-                                                            }
-                                                            e.currentTarget.style.transform = 'scale(1)';
-                                                        } catch (err) {
-                                                            console.error(err);
-                                                            toast.error("Error connecting to prediction service.");
-                                                        }
+                                                        handlePrediction(coin);
                                                     }}
                                                 >
                                                     <Brain size={16} strokeWidth={2} />
@@ -162,15 +138,11 @@ function MarketGridComponent({
                                                     if (watchlistIds.has(coin.id)) return;
 
                                                     if (!user) {
-                                                        import('sonner').then(({ toast }) => toast.error("Please login to use watchlist"));
+                                                        toast.error("Please login to use watchlist");
                                                         return;
                                                     }
 
                                                     try {
-                                                        const { LocalStorage } = await import("@/lib/storage");
-                                                        const { supabase } = await import("@/lib/supabase");
-                                                        const { toast } = await import("sonner");
-
                                                         const localResult = LocalStorage.addToWatchlist(user.id, coin, assetType);
 
                                                         if (!localResult) {
@@ -182,6 +154,7 @@ function MarketGridComponent({
                                                         onWatchlistChange?.();
                                                         setWatchlistIds(prev => new Set([...prev, coin.id]));
 
+                                                        const { supabase } = await import("@/lib/supabase");
                                                         supabase.from('watchlist').insert({
                                                             user_id: user.id,
                                                             coin_id: coin.id,
@@ -190,7 +163,7 @@ function MarketGridComponent({
                                                         } as any).then(({ error }: any) => {
                                                             if (error) {
                                                                 console.error("Supabase Backup Sync Failed:", error);
-                                                                toast.error("Failed to sync with cloud. Changes saved locally.");
+                                                                toast.error("Failed to sync with cloud.");
                                                                 setWatchlistIds(prev => {
                                                                     const next = new Set(prev);
                                                                     next.delete(coin.id);
@@ -244,5 +217,4 @@ function MarketGridComponent({
     );
 }
 
-// Memoize to prevent re-renders when parent state changes
 export default memo(MarketGridComponent);

@@ -37,6 +37,9 @@ import useSWR from 'swr';
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth();
 
+    // Demo user ID for sample predictions
+    const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000';
+
     // 1. Static Counts (Infrequent refresh)
     const { data: counts } = useSWR(
         user ? `dashboard-counts` : null,
@@ -60,33 +63,70 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const { data: rawDashboard, error, mutate } = useSWR(
         user ? `dashboard-data-${user.id}` : null,
         async () => {
-            const today = new Date().toISOString().split('T')[0];
-            const startDate = `${today}T00:00:00`;
-            const endDate = `${today}T23:59:59`;
+            // Get today's date in IST
+            const today = new Date();
+            const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
-            const [watchlistRes, stockPredsRes, cryptoPredsRes] = await Promise.all([
-                supabase.from("watchlist").select("*").eq("user_id", user!.id),
-                supabase.from("stock_predictions").select("*").eq("user_id", user!.id).gte("created_at", startDate).lte("created_at", endDate),
-                supabase.from("crypto_predictions").select("*").eq("user_id", user!.id).gte("created_at", startDate).lte("created_at", endDate)
+            const startDate = startOfDay.toISOString();
+            const endDate = endOfDay.toISOString();
+
+            // Fetch user's watchlist
+            const watchlistRes = await supabase
+                .from("watchlist")
+                .select("*")
+                .eq("user_id", user!.id);
+
+            // Fetch predictions (user's own + demo predictions)
+            const userId = user!.id;
+
+            const [stockPredsRes, cryptoPredsRes] = await Promise.all([
+                supabase
+                    .from("stock_predictions")
+                    .select("*")
+                    .or(`user_id.eq.${userId},user_id.eq.${DEMO_USER_ID}`)
+                    .gte("created_at", startDate)
+                    .order("created_at", { ascending: false })
+                    .limit(10),
+                supabase
+                    .from("crypto_predictions")
+                    .select("*")
+                    .or(`user_id.eq.${userId},user_id.eq.${DEMO_USER_ID}`)
+                    .gte("created_at", startDate)
+                    .order("created_at", { ascending: false })
+                    .limit(10)
             ]);
 
             const list = watchlistRes.data || [];
+
+            // Combine predictions from both tables
             const combined = [
-                ...(stockPredsRes.data || []).map((p: any) => ({ ...p, type: 'stock', name: p.stock_name, confidence: p.accuracy_percent })),
-                ...(cryptoPredsRes.data || []).map((p: any) => ({ ...p, type: 'crypto', name: p.coin, confidence: p.confidence }))
+                ...(stockPredsRes.data || []).map((p: any) => ({
+                    ...p,
+                    type: 'stock',
+                    name: p.stock_name,
+                    confidence: p.confidence || p.accuracy_percent || 0
+                })),
+                ...(cryptoPredsRes.data || []).map((p: any) => ({
+                    ...p,
+                    type: 'crypto',
+                    name: p.coin || p.coin_name,
+                    confidence: p.confidence || 0
+                }))
             ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
             return {
                 watchlist: list,
-                todaysPredictions: combined,
+                todaysPredictions: combined.slice(0, 10),
                 topWatchlist: list.slice(0, 5),
                 lastFetched: Date.now()
             };
         },
         {
             revalidateOnFocus: true,
-            refreshInterval: 60000, // Sync every 60s
-            dedupingInterval: 10000,
+            revalidateOnMount: true,
+            refreshInterval: 30000, // Refresh every 30 seconds
+            dedupingInterval: 2000,
         }
     );
 
@@ -99,7 +139,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             ...d,
             stats: {
                 stockCount: list.filter((i: any) => i.asset_type === 'stock').length,
-                cryptoCount: list.filter((i: any) => (i.asset_type === 'crypto' || !i.asset_type)).length,
+                cryptoCount: list.filter((i: any) => i.asset_type === 'crypto' || !i.asset_type).length,
                 totalStocks: c.totalStocks,
                 totalCrypto: c.totalCrypto
             }
