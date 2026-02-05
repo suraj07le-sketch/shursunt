@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import useSWR from "swr";
-import AdvancedDateSelector from "@/components/dashboard/AdvancedDateSelector";
 import { PredictionCard } from "@/components/dashboard/PredictionCard";
 import { GridBackground } from "@/components/ui/GridBackground";
 import { motion } from "framer-motion";
-import { BrainCircuit, RefreshCw, Clock, Sparkles, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { BrainCircuit, RefreshCw, Clock, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -67,7 +65,6 @@ const fetcher = async ([userId, date, tab]: [string, string, 'stock' | 'crypto']
             .limit(100);
 
         if (error) {
-            // Suppress AbortError logs (happens during hot reload)
             if (error.message && !error.message.includes('AbortError')) {
                 console.error("[Fetcher] Supabase Error:", error);
             }
@@ -83,19 +80,23 @@ const fetcher = async ([userId, date, tab]: [string, string, 'stock' | 'crypto']
             created_at: item.created_at
         }));
 
-        // Filter by date
+        // Filter by date (IST timezone)
         const filtered = normalized.filter((item: any) => {
             const targetDateStr = item.predicted_time || item.created_at;
             if (!targetDateStr) return false;
             try {
+                // Convert both dates to IST timezone for proper comparison
                 const targetDate = new Date(targetDateStr);
+                const targetIST = new Date(targetDate.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+
                 const filterDate = new Date(date);
-                const targetYMD = targetDate.toISOString().split('T')[0];
-                const filterYMD = filterDate.toISOString().split('T')[0];
-                if (targetYMD === filterYMD) return true;
-                const diffTime = Math.abs(targetDate.getTime() - filterDate.getTime());
-                const diffHours = diffTime / (1000 * 60 * 60);
-                return diffHours < 24;
+                const filterIST = new Date(filterDate.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+
+                // Compare dates in IST
+                const targetYMD = targetIST.toISOString().split('T')[0];
+                const filterYMD = filterIST.toISOString().split('T')[0];
+
+                return targetYMD === filterYMD;
             } catch (e) { return false; }
         });
 
@@ -108,7 +109,6 @@ const fetcher = async ([userId, date, tab]: [string, string, 'stock' | 'crypto']
             if (!existing) {
                 grouped.set(key, item);
             } else {
-                // Keep the most recent prediction
                 const existingTime = new Date(existing.created_at).getTime();
                 const currentTime = new Date(item.created_at).getTime();
                 if (currentTime > existingTime) {
@@ -128,14 +128,13 @@ const fetcher = async ([userId, date, tab]: [string, string, 'stock' | 'crypto']
 
 export default function PredictionsPage() {
     const { user } = useAuth();
-    const searchParams = useSearchParams();
+    const router = useRouter();
 
-    const [selectedDate, setSelectedDate] = useState(() => {
-        const now = new Date();
-        const offset = now.getTimezoneOffset();
-        const local = new Date(now.getTime() - (offset * 60 * 1000));
-        return local.toISOString().split('T')[0];
-    });
+    // Always use current date in IST timezone
+    const currentDate = new Date();
+    const istDate = new Date(currentDate.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const todayDate = istDate.toISOString().split('T')[0];
+    const [selectedDate] = useState(todayDate);
 
     const [activeTab, setActiveTab] = useState<'stock' | 'crypto'>('stock');
     const [isPolling, setIsPolling] = useState(false);
@@ -143,39 +142,66 @@ export default function PredictionsPage() {
     const [lastPredictionTime, setLastPredictionTime] = useState<number>(Date.now());
     const [isGenerating, setIsGenerating] = useState(false);
 
-    // Manual prediction form state
-    const [predictionInput, setPredictionInput] = useState('');
-    const [isInputVisible, setIsInputVisible] = useState(false);
-
-    // Handle URL params for automatic prediction
-    useEffect(() => {
-        const tabParam = searchParams.get('tab');
-        if (tabParam === 'stock' || tabParam === 'crypto') {
-            setActiveTab(tabParam);
-        }
-
-        const predictSymbol = searchParams.get('predict');
-        const predictType = searchParams.get('type') || (activeTab === 'crypto' ? 'crypto' : 'stock');
-        const predictTimeframe = searchParams.get('timeframe') || '4h';
-
-        if (predictSymbol) {
-            console.log("Triggering prediction for:", predictSymbol, "Type:", predictType, "Timeframe:", predictTimeframe);
-            generatePrediction(predictSymbol, predictType as 'stock' | 'crypto', predictTimeframe);
-        }
-    }, [searchParams]);
-
-    // SWR Hook for data fetching
+    // SWR Hook for data fetching with auto-refresh
     const { data: predictions, isLoading, mutate } = useSWR(
         user ? [user.id, selectedDate, activeTab] : null,
         fetcher,
         {
-            revalidateOnFocus: true,
-            revalidateOnMount: true,
-            dedupingInterval: 0,
-            refreshInterval: isPolling ? 2000 : 0,
-            suspense: false
+            revalidateOnFocus: true,        // Refresh when window gains focus
+            revalidateOnMount: true,        // Refresh on component mount
+            revalidateOnReconnect: true,    // Refresh on network reconnect
+            dedupingInterval: 1000,         // Allow refresh every 1 second (reduced from 0)
+            refreshInterval: isPolling ? 2000 : 0,  // Poll every 2s when generating
+            suspense: false,
+            keepPreviousData: true,         // Show old data while fetching new
+            revalidateIfStale: true,        // Always revalidate stale data
+            focusThrottleInterval: 2000     // Throttle focus revalidation to every 2s
         }
     );
+
+    // Check URL parameters for auto-polling (when redirected from market page)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const shouldPoll = params.get('poll');
+        const assetType = params.get('type');
+        const source = params.get('source'); // 'market' or 'watchlist'
+
+        if (shouldPoll === 'true' && assetType) {
+            // IMPORTANT: Set active tab FIRST before starting polling/generating
+            // This ensures the correct tab is selected when the page loads
+            setActiveTab(assetType as 'stock' | 'crypto');
+
+            // Small delay to ensure tab switch completes before starting loading state
+            setTimeout(() => {
+                // For watchlist, use different loading behavior
+                if (source === 'watchlist') {
+                    setIsGenerating(true); // Shows single skeleton at top
+                } else {
+                    setIsPolling(true); // Shows full skeleton grid
+                }
+
+                setLastPredictionTime(Date.now());
+            }, 100);
+
+            // Clean up URL
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    }, []);
+
+    // Auto-stop generating state when new data arrives
+    useEffect(() => {
+        if (isGenerating && predictions && predictions.length > 0) {
+            const hasNew = predictions.some((p: any) => {
+                const pTime = new Date(p.created_at).getTime();
+                return pTime > lastPredictionTime;
+            });
+
+            if (hasNew) {
+                setIsGenerating(false);
+                toast.success("New prediction received!");
+            }
+        }
+    }, [predictions, isGenerating, lastPredictionTime]);
 
     // Auto-stop polling when new data arrives
     useEffect(() => {
@@ -217,7 +243,7 @@ export default function PredictionsPage() {
     }, [isPolling]);
 
     // Generate prediction function
-    const generatePrediction = async (symbol: string, type: 'stock' | 'crypto', timeframe: string = '4h') => {
+    const generatePrediction = async (symbol: string, type: 'stock' | 'crypto', timeframe: string = '4h', tradingSymbol?: string) => {
         if (!user) {
             toast.error("Please login to generate predictions");
             return;
@@ -225,7 +251,6 @@ export default function PredictionsPage() {
 
         setIsGenerating(true);
         setIsPolling(true);
-        setIsInputVisible(false);
 
         // Switch tab if needed
         if (type === 'crypto' && activeTab !== 'crypto') setActiveTab('crypto');
@@ -238,6 +263,7 @@ export default function PredictionsPage() {
                 body: JSON.stringify({
                     coinId: symbol,
                     coinName: symbol,
+                    symbol: tradingSymbol || symbol,
                     timeframe: timeframe,
                     type: type
                 })
@@ -248,8 +274,27 @@ export default function PredictionsPage() {
             if (data.success) {
                 toast.success(`Prediction generated for ${symbol}!`);
                 setLastPredictionTime(Date.now());
-                // Refresh data
-                mutate();
+
+                // --- INSTANT UI UPDATE ---
+                // Map API response to match our display schema
+                const newPred = {
+                    ...data.prediction,
+                    id: `temp-${Date.now()}`,
+                    stock_name: type === 'stock' ? symbol : undefined,
+                    coin: type === 'crypto' ? symbol : undefined, // This is usually the symbol from CG
+                    trend: data.prediction.signal,
+                    created_at: data.prediction.prediction_time
+                };
+
+                mutate((current: any) => {
+                    if (!current) return [newPred];
+                    // Filter out old prediction for same asset to prevent duplicates
+                    const filtered = current.filter((p: any) =>
+                        (type === 'stock' && p.stock_name !== symbol) ||
+                        (type === 'crypto' && p.coin !== symbol)
+                    );
+                    return [newPred, ...filtered];
+                }, { revalidate: false });
             } else {
                 toast.error(`Prediction failed: ${data.error || 'Unknown error'}`);
             }
@@ -259,15 +304,6 @@ export default function PredictionsPage() {
         } finally {
             setIsGenerating(false);
             setIsPolling(false);
-        }
-    };
-
-    // Handle manual prediction submission
-    const handleManualPrediction = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (predictionInput.trim()) {
-            generatePrediction(predictionInput.trim(), activeTab as 'stock' | 'crypto');
-            setPredictionInput('');
         }
     };
 
@@ -309,49 +345,60 @@ export default function PredictionsPage() {
                         )}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-card/40 backdrop-blur-md p-2 rounded-2xl border border-border/50 shadow-sm">
-                        {/* Asset Type Tabs */}
+                    {/* Tab Switcher */}
+                    <div className="flex items-center gap-4">
                         <div className="flex gap-1 bg-black/5 dark:bg-black/20 p-1 rounded-xl border border-black/5 dark:border-white/5">
                             <button
                                 onClick={() => setActiveTab('stock')}
-                                className={cn(
-                                    "px-4 py-1.5 rounded-lg font-bold text-xs transition-all duration-300",
-                                    activeTab === 'stock'
-                                        ? "bg-white dark:bg-white/10 text-primary shadow-sm"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
-                                )}
+                                className={`px-4 py-1.5 rounded-lg font-bold text-xs transition-all duration-300 ${activeTab === 'stock'
+                                    ? "bg-white dark:bg-white/10 text-primary shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
+                                    }`}
                             >
                                 Stocks
                             </button>
                             <button
                                 onClick={() => setActiveTab('crypto')}
-                                className={cn(
-                                    "px-4 py-1.5 rounded-lg font-bold text-xs transition-all duration-300",
-                                    activeTab === 'crypto'
-                                        ? "bg-white dark:bg-white/10 text-yellow-500 shadow-sm"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
-                                )}
+                                className={`px-4 py-1.5 rounded-lg font-bold text-xs transition-all duration-300 ${activeTab === 'crypto'
+                                    ? "bg-white dark:bg-white/10 text-yellow-500 shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
+                                    }`}
                             >
                                 Crypto
                             </button>
                         </div>
-
-
-                        {/* Date Filter */}
-                        <AdvancedDateSelector
-                            selectedDate={selectedDate}
-                            onChange={setSelectedDate}
-                        />
                     </div>
                 </div>
 
                 {/* Content Section */}
-                {isLoading || isGenerating || isPolling ? (
+                {isLoading || isPolling ? (
+                    // Full skeleton grid for initial load or market page navigation
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[...Array(6)].map((_, i) => (
                             <PredictionSkeleton key={i} />
                         ))}
                     </div>
+                ) : isGenerating ? (
+                    // Single skeleton at top + existing predictions for watchlist
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    >
+                        {/* Single skeleton card at top */}
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="order-first"
+                        >
+                            <PredictionSkeleton />
+                        </motion.div>
+
+                        {/* Existing predictions below */}
+                        {(predictions ?? []).map((pred: any) => (
+                            <PredictionCard key={pred.id} pred={pred} isStock={activeTab === 'stock'} />
+                        ))}
+                    </motion.div>
                 ) : (predictions?.length ?? 0) > 0 ? (
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -367,16 +414,16 @@ export default function PredictionsPage() {
                         <div className="bg-muted/30 p-4 rounded-full mb-4">
                             <BrainCircuit className="w-12 h-12 text-muted-foreground/50" />
                         </div>
-                        <h3 className="text-xl font-bold text-muted-foreground">No Signals Detected</h3>
+                        <h3 className="text-xl font-bold text-muted-foreground">No Predictions for Today</h3>
                         <p className="text-muted-foreground/50 mt-2 max-w-sm">
-                            AI has not generated any {activeTab} predictions for {selectedDate}.
+                            AI has not generated any {activeTab} predictions for today.
                         </p>
                         <button
-                            onClick={() => window.location.href = '/watchlist'}
+                            onClick={() => router.push('/market')}
                             className="mt-6 flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold transition-all duration-300"
                         >
-                            <Plus className="w-5 h-5" />
-                            Generate Your First Prediction
+                            <Sparkles className="w-5 h-5" />
+                            Let's Predict
                         </button>
                     </div>
                 )}

@@ -26,8 +26,18 @@ const CRYPTO_IDS = [
     'eos', 'tezos', 'bitget-token', 'gala'
 ];
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        // Security Check: Protect this endpoint
+        const authHeader = request.headers.get('authorization');
+        const cronSecret = process.env.CRON_SECRET;
+
+        // Allow if running in development locally, otherwise enforce secret
+        const isDev = process.env.NODE_ENV === 'development';
+        if (!isDev && authHeader !== `Bearer ${cronSecret}`) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
         console.log("Starting Data Sync...");
 
         // 1. Fetch Crypto Data
@@ -36,12 +46,25 @@ export async function GET() {
         // 2. Fetch Stock Data (Sequential to avoid rate limits if any)
         const stockData = await fetchStocks();
 
-        // 3. Upsert to Supabase
-        await updateDatabase(stockData, cryptoData);
+        // --- BACKGROUND STORAGE (Non-blocking) ---
+        (async () => {
+            try {
+                await updateDatabase(stockData, cryptoData);
+                const istNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+                console.log(`[Sync] Background database update completed successfully at ${istNow.toISOString()}`);
+            } catch (dbError) {
+                console.error("[Sync] Background database update failed:", dbError);
+            }
+        })();
 
+        // Return data immediately to the UI/Dashboard
         return NextResponse.json({
             success: true,
-            message: `Synced ${stockData.length} stocks and ${cryptoData.length} cryptos`
+            data: {
+                stocks: stockData,
+                cryptos: cryptoData
+            },
+            message: `Fetched ${stockData.length} stocks and ${cryptoData.length} cryptos. Storing in background...`
         });
 
     } catch (error: any) {
@@ -143,10 +166,53 @@ async function fetchCryptos() {
 }
 
 async function fetchStocks() {
-    const stocks: any[] = [];
+    const INDIAN_API_KEY = process.env.INDIAN_API_KEY;
 
-    // Yahoo Finance can accept multiple symbols? Chart endpoint usually one by one for details.
-    // 'quote' endpoint is better for multiple: https://query1.finance.yahoo.com/v7/finance/quote?symbols=...
+    if (!INDIAN_API_KEY) {
+        console.warn("[Sync] INDIAN_API_KEY is missing. Skipping Indian stocks fetch.");
+        return [];
+    }
+
+    try {
+        console.log("[Sync] Pulling data from Indian Stock API...");
+        // Use individual metadata fetches for deep data quality
+        const results = await Promise.all(STOCK_SYMBOLS.map(async (fullSymbol) => {
+            const sym = fullSymbol.split('.')[0];
+            try {
+                const res = await fetch(`https://stock.indianapi.in/stock?name=${sym}`, {
+                    headers: { "X-Api-Key": INDIAN_API_KEY },
+                    next: { revalidate: 300 }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    return {
+                        symbol: sym,
+                        name: data.companyName || sym,
+                        current_price: data.currentPrice?.NSE || data.currentPrice?.BSE || 0,
+                        price_change_percentage_24h: data.changePercentage || 0,
+                        market_cap: data.marketCap || 0,
+                        high_24h: data.high52Week || 0,
+                        low_24h: data.low52Week || 0,
+                        volume: data.volume || 0,
+                        image: `https://logo.clearbit.com/${sym.toLowerCase()}.com`
+                    };
+                }
+            } catch (e) {
+                console.warn(`[Sync] Failed fetch for ${sym}:`, e);
+            }
+            return null;
+        }));
+
+        const valid = results.filter(s => s !== null);
+        if (valid.length >= 5) {
+            console.log(`[Sync] Successfully synced ${valid.length} stocks from Indian API`);
+            return valid;
+        }
+    } catch (e) {
+        console.error("[Sync] Indian API critical failure:", e);
+    }
+
+    // Fallback to Yahoo Finance (Bulk fetch)
     const symbolsParam = STOCK_SYMBOLS.join(',');
     const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsParam}`;
 
@@ -156,7 +222,7 @@ async function fetchStocks() {
         const results = json.quoteResponse?.result || [];
 
         return results.map((quote: any) => ({
-            symbol: quote.symbol.replace('.NS', ''), // Clean symbol
+            symbol: quote.symbol.replace('.NS', ''),
             name: quote.longName || quote.shortName,
             current_price: quote.regularMarketPrice,
             price_change_percentage_24h: quote.regularMarketChangePercent,
@@ -164,10 +230,10 @@ async function fetchStocks() {
             high_24h: quote.regularMarketDayHigh,
             low_24h: quote.regularMarketDayLow,
             volume: quote.regularMarketVolume,
-            image: `https://logo.clearbit.com/${quote.symbol.replace('.NS', '').toLowerCase()}.com` // Simple logic, might fail for some
+            image: `https://logo.clearbit.com/${quote.symbol.replace('.NS', '').toLowerCase()}.com`
         }));
     } catch (e) {
-        console.error("Yahoo Finance Error:", e);
+        console.error("Yahoo Finance Sync Error:", e);
         return [];
     }
 }

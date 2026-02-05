@@ -80,6 +80,7 @@ export default function MarketTable({
             });
         } catch (err) {
             console.error("Critical Error:", err);
+            toast.error("Failed to update watchlist. Please try again.");
         }
     };
 

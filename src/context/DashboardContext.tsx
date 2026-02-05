@@ -115,6 +115,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
                 }))
             ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+            // Trigger background sync to ensure data is fresh for next time
+            // We don't await this so it doesn't block the initial dashboard load
+            // OPTIMIZATION: Removed auto-sync on load to speed up dashboard. 
+            // Sync should be handled by a dedicated background worker or manual trigger.
+            // fetch('/api/sync').catch(e => console.error("Background sync failed:", e));
+
             return {
                 watchlist: list,
                 todaysPredictions: combined.slice(0, 10),
@@ -125,8 +131,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         {
             revalidateOnFocus: true,
             revalidateOnMount: true,
-            refreshInterval: 30000, // Refresh every 30 seconds
-            dedupingInterval: 2000,
+            refreshInterval: 60000, // Reduced frequency to prevent API hammering
+            dedupingInterval: 10000,
         }
     );
 

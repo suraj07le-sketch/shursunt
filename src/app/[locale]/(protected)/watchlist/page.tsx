@@ -25,21 +25,49 @@ function WatchlistRow({ item, onDelete }: { item: WatchlistItem; onDelete: (id: 
     const [predicting, setPredicting] = useState(false);
 
     const handlePredict = async () => {
-        if (!user) return;
+        if (!user) {
+            toast.error("Please login to use AI features.");
+            return;
+        }
 
         setPredicting(true);
+        const symbol = (item.coin_data.symbol || "").toUpperCase();
+        const type = item.asset_type || 'crypto';
+        const name = item.coin_data.name || symbol;
+
+        toast.loading(`Generating prediction for ${name}...`, { id: `predict-${item.id}` });
 
         try {
-            // Redirect to predictions page with params to trigger generation there
-            const symbol = item.coin_data.symbol.toUpperCase();
-            const type = item.asset_type || 'crypto';
+            // 1. Call real prediction API
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    coinId: item.coin_id,
+                    coinName: name,
+                    symbol: symbol, // Ensure valid ticker is sent
+                    timeframe: timeframe,
+                    type: type,
+                    currentPrice: item.coin_data.current_price
+                })
+            });
 
-            router.push(`/predictions?predict=${symbol}&type=${type}&timeframe=${timeframe}`);
-            toast.success(`Navigating to predictions for ${symbol}...`);
+            const data = await response.json();
 
+            if (data.success) {
+                toast.success(`Prediction generated for ${name}!`, { id: `predict-${item.id}` });
+
+                // 2. Navigate to predictions page with polling enabled
+                // Using source=watchlist to show refined single-skeleton state
+                setTimeout(() => {
+                    router.push(`/predictions?poll=true&type=${type}&source=watchlist`);
+                }, 500);
+            } else {
+                toast.error(data.error || 'Failed to generate prediction', { id: `predict-${item.id}` });
+            }
         } catch (err) {
-            console.error("Prediction Navigation Error:", err);
-            toast.error("Failed to start prediction");
+            console.error("Watchlist Prediction Error:", err);
+            toast.error("Failed to start prediction. Please try again.", { id: `predict-${item.id}` });
         } finally {
             setPredicting(false);
         }

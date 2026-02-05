@@ -26,16 +26,32 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
     const { user } = useAuth();
     const [watchlistIds, setWatchlistIds] = useState<Set<string>>(new Set());
 
-    // Background Freshing with SWR
-    const { data: stockData } = useSWR('market-stocks', async () => {
-        const { getMarketData } = await import("@/lib/api");
-        return getMarketData('stock');
-    }, { fallbackData: initialStocks, refreshInterval: 60000, revalidateOnMount: true, revalidateOnFocus: true });
+    // Background Refreshing with SWR (Hits live Sync API)
+    const { data: stockData } = useSWR('market-stocks-live', async () => {
+        const res = await fetch('/api/sync');
+        const json = await res.json();
+        return json.success ? json.data.stocks : initialStocks;
+    }, {
+        fallbackData: initialStocks,
+        refreshInterval: 60000,
+        revalidateOnMount: true,
+        revalidateOnFocus: true,
+        keepPreviousData: true,
+        dedupingInterval: 10000
+    });
 
-    const { data: cryptoData } = useSWR('market-crypto', async () => {
-        const { getMarketData } = await import("@/lib/api");
-        return getMarketData('crypto');
-    }, { fallbackData: initialCrypto, refreshInterval: 60000, revalidateOnMount: true, revalidateOnFocus: true });
+    const { data: cryptoData } = useSWR('market-crypto-live', async () => {
+        const res = await fetch('/api/sync');
+        const json = await res.json();
+        return json.success ? json.data.cryptos : initialCrypto;
+    }, {
+        fallbackData: initialCrypto,
+        refreshInterval: 60000,
+        revalidateOnMount: true,
+        revalidateOnFocus: true,
+        keepPreviousData: true,
+        dedupingInterval: 10000
+    });
 
     const currentData = assetType === 'stock' ? (stockData || initialStocks) : (cryptoData || initialCrypto);
 
@@ -186,6 +202,7 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
                     assetType={assetType}
                     onSelect={(symbol) => console.log(symbol)}
                     watchlistIds={watchlistIds}
+                    source={filter === 'watchlist' ? 'watchlist' : 'market'}
                     onWatchlistChange={() => {
                         if (user) {
                             const list = LocalStorage.getWatchlist(user.id);
@@ -215,7 +232,7 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
 
             {/* Pagination Controls */}
             {
-                totalPages > 1 && (
+                filteredData.length > 0 && totalPages > 1 && (
                     <div className="mt-20 flex justify-center items-center gap-4 pt-4">
                         <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -234,6 +251,9 @@ export default function MarketPlaceView({ initialStocks, initialCrypto }: Market
                         >
                             Next
                         </button>
+                        <div className="hidden">
+                            Debug: {filteredData.length} items, {totalPages} pages
+                        </div>
                     </div>
                 )
             }

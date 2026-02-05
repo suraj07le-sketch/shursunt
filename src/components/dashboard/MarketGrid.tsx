@@ -1,5 +1,5 @@
 import { Coin } from "@/types";
-import { ArrowUpRight, ArrowDownRight, Plus, Brain, Check } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Plus, Brain, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useState, useEffect, memo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -21,6 +21,7 @@ interface MarketGridProps {
     assetType: 'stock' | 'crypto';
     watchlistIds?: Set<string>;
     onWatchlistChange?: () => void;
+    source?: 'market' | 'watchlist'; // Track where predictions are triggered from
 }
 
 function MarketGridComponent({
@@ -28,7 +29,8 @@ function MarketGridComponent({
     onSelect,
     assetType,
     watchlistIds: initialWatchlistIds,
-    onWatchlistChange
+    onWatchlistChange,
+    source = 'market' // Default to market if not specified
 }: MarketGridProps) {
     const { user } = useAuth();
     const router = useRouter();
@@ -43,6 +45,8 @@ function MarketGridComponent({
         }
     }, [initialWatchlistIds, user]);
 
+    const [generatingPrediction, setGeneratingPrediction] = useState<string | null>(null);
+
     // Generate prediction using local API
     const handlePrediction = useCallback(async (coin: Coin) => {
         if (!user) {
@@ -50,26 +54,55 @@ function MarketGridComponent({
             return;
         }
 
-        toast.loading(`Generating prediction for ${coin.name}...`);
+        if (generatingPrediction) {
+            toast.error("Please wait for the current prediction to complete.");
+            return;
+        }
+
+        setGeneratingPrediction(coin.id);
+        toast.loading(`Generating prediction for ${coin.name}...`, { id: `predict-${coin.id}` });
 
         try {
-            // Redirect to predictions page to trigger generation
-            router.push(`/predictions?predict=${coin.id}&type=${assetType}&timeframe=4h`);
-            toast.success(`Navigating to predictions for ${coin.name}...`);
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    coinId: coin.id,
+                    coinName: coin.name,
+                    symbol: coin.symbol,
+                    timeframe: '4h',
+                    type: assetType,
+                    currentPrice: coin.current_price
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                toast.success(`Prediction generated for ${coin.name}!`, { id: `predict-${coin.id}` });
+                // Navigate to predictions page with source parameter
+                setTimeout(() => {
+                    router.push(`/predictions?poll=true&type=${assetType}&source=${source}`);
+                }, 500);
+            } else {
+                toast.error(data.error || 'Failed to generate prediction', { id: `predict-${coin.id}` });
+            }
         } catch (err) {
-            console.error("Prediction Navigation Error:", err);
-            toast.error("Failed to navigate to prediction page.");
+            console.error("Prediction API Error:", err);
+            toast.error("Failed to generate prediction. Please try again.", { id: `predict-${coin.id}` });
+        } finally {
+            setGeneratingPrediction(null);
         }
-    }, [user, assetType, router]);
+    }, [user, assetType, router, generatingPrediction]);
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {coins.map((coin) => {
+            {coins.map((coin, index) => {
                 const isPositive = coin.price_change_percentage_24h >= 0;
 
                 return (
                     <TiltCard
-                        key={coin.id}
+                        key={`${assetType}-${coin.symbol}-${coin.id ?? index}`}
                         className="group cursor-pointer"
                         tiltStrength={8}
                         perspective={1000}
@@ -122,14 +155,22 @@ function MarketGridComponent({
                                                 sparkleSize={3}
                                             >
                                                 <button
-                                                    className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-black transition-all duration-300 shadow-sm z-20 hover:scale-110 hover:shadow-lg hover:shadow-primary/30"
+                                                    className={cn(
+                                                        "w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-black transition-all duration-300 shadow-sm z-20 hover:scale-110 hover:shadow-lg hover:shadow-primary/30",
+                                                        generatingPrediction === coin.id && "opacity-50 cursor-not-allowed"
+                                                    )}
                                                     title="AI Prediction"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         handlePrediction(coin);
                                                     }}
+                                                    disabled={generatingPrediction === coin.id}
                                                 >
-                                                    <Brain size={16} strokeWidth={2} />
+                                                    {generatingPrediction === coin.id ? (
+                                                        <Loader2 size={16} strokeWidth={2} className="animate-spin" />
+                                                    ) : (
+                                                        <Brain size={16} strokeWidth={2} />
+                                                    )}
                                                 </button>
                                             </Sparkles>
                                             <button

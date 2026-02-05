@@ -19,8 +19,10 @@ const safeFormatDate = (dateString: string | null | undefined) => {
 
     try {
         let date = new Date(dateString);
+        // Convert to IST timezone
         if (!isNaN(date.getTime())) {
-            return format(date, "MMM d, HH:mm");
+            const istDate = new Date(date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+            return format(istDate, "MMM d, HH:mm");
         }
 
         const parts = dateString.split(', ');
@@ -35,7 +37,8 @@ const safeFormatDate = (dateString: string | null | undefined) => {
 
             date = new Date(year, month - 1, day, hours, minutes, 0);
             if (!isNaN(date.getTime())) {
-                return format(date, "MMM d, HH:mm");
+                const istDate = new Date(date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+                return format(istDate, "MMM d, HH:mm");
             }
         }
     } catch (e) { console.error(e) }
@@ -49,9 +52,10 @@ interface PredictionCardProps {
 }
 
 export function PredictionCard({ pred, isStock }: PredictionCardProps) {
-    const isBullish = pred.trend?.toUpperCase() === "UP";
+    const normalizedTrend = (pred.trend || pred.signal || "").toUpperCase();
+    const isBullish = normalizedTrend === "UP" || normalizedTrend === "BUY";
     const statusColor = pred.status === 'completed' ? 'text-green-500 bg-green-500/10' : 'text-yellow-500 bg-yellow-500/10';
-    const trendColor = isBullish ? 'text-green-500' : 'text-red-500';
+    const trendColor = isBullish ? 'text-green-400' : 'text-red-400';
     const borderColor = isBullish ? 'hover:border-green-500/30' : 'hover:border-red-500/30';
     const currency = isStock ? '₹' : '$';
 
@@ -74,35 +78,35 @@ export function PredictionCard({ pred, isStock }: PredictionCardProps) {
 
 
             {/* Header */}
-            <div className="flex justify-between items-start mb-6 z-10">
-                <div className="space-y-1">
+            <div className="flex justify-between items-start mb-6 z-10 gap-2">
+                <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-3">
-                        <h3 className="font-black text-3xl text-foreground tracking-tight">
+                        <h3 className="font-black text-2xl md:text-3xl text-foreground tracking-tight truncate">
                             {cleanSymbol(pred.stock_name || pred.stockname || pred.coin || pred.coin_name)}
                         </h3>
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 bg-muted/50 border border-border/50 ${trendColor}`}>
-                            {isBullish ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                            {pred.trend || "N/A"}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 bg-muted/50 border border-border/50 shrink-0 ${trendColor}`}>
+                            {isBullish ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                            {pred.trend || pred.signal || "N/A"}
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-                        <span className="px-2 py-0.5 rounded-full bg-muted/50 border border-border/50">
+                    <div className="flex items-center gap-2 text-[10px] md:text-xs text-muted-foreground font-mono">
+                        <span className="px-2 py-0.5 rounded-full bg-muted/50 border border-border/50 uppercase">
                             {pred.timeframe || "4H"}
                         </span>
-                        <span>CONFIDENCE: <span className="text-foreground font-bold">{pred.confidence || "0%"}</span></span>
+                        <span>CONFIDENCE: <span className="text-foreground font-bold">{pred.confidence || pred.accuracy_percent || 0}%</span></span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 shrink-0">
                     {/* Small Glowing Brain Icon */}
-                    <div className={`relative flex items-center justify-center p-2 rounded-xl border bg-background/50 backdrop-blur-md shadow-[0_0_15px_-3px] transition-all duration-300 ${isBullish ? 'border-green-500/30 shadow-green-500/30' : 'border-red-500/30 shadow-red-500/30'}`}>
-                        <BrainCircuit className={`w-5 h-5 ${isBullish ? 'text-green-500' : 'text-red-500'}`} />
+                    <div className={`relative flex items-center justify-center p-1.5 rounded-xl border bg-background/50 backdrop-blur-md shadow-[0_0_15px_-3px] transition-all duration-300 ${isBullish ? 'border-green-500/30 shadow-green-500/30' : 'border-red-500/30 shadow-red-500/30'}`}>
+                        <BrainCircuit className={`w-4 h-4 md:w-5 md:h-5 ${isBullish ? 'text-green-500' : 'text-red-500'}`} />
                         <div className={`absolute inset-0 rounded-xl opacity-20 blur-[8px] ${isBullish ? 'bg-green-500' : 'bg-red-500'}`} />
                     </div>
 
-                    <div className={`p-2 rounded-xl border border-transparent ${statusColor}`}>
-                        {pred.status === 'completed' ? <CheckCircle size={20} /> : <Clock size={20} />}
+                    <div className={`p-1.5 rounded-xl border border-transparent ${statusColor}`}>
+                        {pred.status === 'completed' ? <CheckCircle size={18} /> : <Clock size={18} />}
                     </div>
                 </div>
             </div>
@@ -127,7 +131,7 @@ export function PredictionCard({ pred, isStock }: PredictionCardProps) {
                 <div className="flex justify-between items-center px-2">
                     <div className="text-[10px] uppercase tracking-widest text-muted-foreground/70">Target Date</div>
                     <div className="text-xs font-mono text-muted-foreground">
-                        {safeFormatDate(pred.predicted_time || pred.prediction_valid_till_ist)}
+                        {safeFormatDate(pred.predicted_time_ist || pred.prediction_time_ist || pred.predicted_time || pred.prediction_valid_till_ist)}
                     </div>
                 </div>
             </div>
