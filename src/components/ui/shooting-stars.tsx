@@ -65,35 +65,34 @@ export const ShootingStars = ({
 
     useEffect(() => {
         const moveStar = () => {
-            if (star) {
-                setStar((prevStar) => {
-                    if (!prevStar) return null;
-                    const newX =
-                        prevStar.x +
-                        prevStar.speed * Math.cos((prevStar.angle * Math.PI) / 180);
-                    const newY =
-                        prevStar.y +
-                        prevStar.speed * Math.sin((prevStar.angle * Math.PI) / 180);
-                    const newDistance = prevStar.distance + prevStar.speed;
-                    const { innerWidth, innerHeight } = window;
+            setStar((prevStar) => {
+                if (!prevStar) return null;
+                const newX =
+                    prevStar.x +
+                    prevStar.speed * Math.cos((prevStar.angle * Math.PI) / 180);
+                const newY =
+                    prevStar.y +
+                    prevStar.speed * Math.sin((prevStar.angle * Math.PI) / 180);
+                const newDistance = prevStar.distance + prevStar.speed;
+                const { innerWidth, innerHeight } = window;
 
-                    if (newX < -20 || newX > innerWidth + 20 || newY > innerHeight + 20) {
-                        return null;
-                    }
+                if (newX < -20 || newX > innerWidth + 20 || newY > innerHeight + 20) {
+                    return null;
+                }
 
-                    return {
-                        ...prevStar,
-                        x: newX,
-                        y: newY,
-                        distance: newDistance,
-                    };
-                });
-            }
+                return {
+                    ...prevStar,
+                    x: newX,
+                    y: newY,
+                    distance: newDistance,
+                };
+            });
+            requestAnimationFrame(moveStar);
         };
 
         const animationFrame = requestAnimationFrame(moveStar);
         return () => cancelAnimationFrame(animationFrame);
-    }, [star]);
+    }, []);
 
     return (
         <svg

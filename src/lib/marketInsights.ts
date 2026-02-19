@@ -29,14 +29,8 @@ export const fetchTrendingStocks = async () => {
         if (!res.ok) throw new Error("API Offline");
         return await res.json();
     } catch {
-        console.warn("[MarketInsights] Trending fetch failed, using fallback");
-        return [
-            { symbol: "TATAELXSI", stock_name: "Tata Elxsi", current_price: 7850.45, change_percent: 2.34 },
-            { symbol: "RELIANCE", stock_name: "Reliance Ind", current_price: 2456.20, change_percent: 1.15 },
-            { symbol: "HDFCBANK", stock_name: "HDFC Bank", current_price: 1645.80, change_percent: -0.45 },
-            { symbol: "ZOMATO", stock_name: "Zomato Ltd", current_price: 156.40, change_percent: 4.56 },
-            { symbol: "WIPRO", stock_name: "Wipro", current_price: 489.20, change_percent: -1.20 }
-        ];
+        console.warn("[MarketInsights] Trending fetch failed");
+        return [];
     }
 };
 

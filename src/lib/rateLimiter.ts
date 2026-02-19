@@ -39,9 +39,21 @@ class RateLimiter {
         while (this.queue.length > 0) {
             const task = this.queue.shift();
             if (task) {
-                await task();
-                // Wait for the delay or at least some time before next request to respect rate limits
-                await new Promise(res => setTimeout(res, this.delayMs));
+                try {
+                    await task();
+                    // Normal delay after success
+                    await new Promise(res => setTimeout(res, this.delayMs));
+                } catch (err: any) {
+                    // If we hit a 429, wait much longer (e.g. 1 minute) to let the window reset
+                    const is429 = err?.response?.status === 429 || err?.status === 429 || err?.message?.includes('429');
+                    if (is429) {
+                        console.warn(`[RateLimiter] 429 detected. Sleeping for 60s...`);
+                        await new Promise(res => setTimeout(res, 60000));
+                    } else {
+                        // Regular delay on other failures
+                        await new Promise(res => setTimeout(res, this.delayMs));
+                    }
+                }
             }
         }
 
@@ -49,5 +61,5 @@ class RateLimiter {
     }
 }
 
-// Singleton instance tailored for the Indian Stock API which is sensitive
-export const indianApiLimiter = new RateLimiter(1200); // 1.2s delay between requests to be safe
+// Singleton instance tailored for the Indian Stock API which is extremely sensitive
+export const indianApiLimiter = new RateLimiter(4000); // Increased to 4s delay + 60s backoff for 429s

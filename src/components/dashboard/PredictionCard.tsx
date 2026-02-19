@@ -83,12 +83,12 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
             <div className="flex justify-between items-start mb-4">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                        <h3 className="font-black text-3xl text-foreground tracking-tight leading-none">
+                        <h3 className="font-extrabold text-2xl text-foreground tracking-tight leading-none group-hover:text-primary transition-colors">
                             {cleanSymbol(pred.stock_name || pred.coin || pred.name)}
                         </h3>
                         {/* Status Icon Wrapper */}
-                        <div className={`p-1.5 rounded-full border border-current opacity-20 ${trendColor}`}>
-                            {isBullish ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        <div className={`p-1 rounded-full border border-current/20 ${trendColor} bg-current/5`}>
+                            {isBullish ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                         </div>
                     </div>
 
@@ -137,10 +137,10 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
                 <div className="flex flex-col">
                     <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-0.5">Confidence</span>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-bold text-foreground">{Math.round(Number(pred.confidence || pred.accuracy_percent || 0))}%</span>
-                        <div className="h-1.5 w-8 rounded-full bg-muted overflow-hidden relative top-[-2px]">
+                        <span className="text-lg font-bold text-foreground tabular-nums">{Math.round(Number(pred.confidence || pred.accuracy_percent || 0))}%</span>
+                        <div className="h-1.5 w-10 rounded-full bg-muted/50 overflow-hidden relative top-[-1px]">
                             <div
-                                className={`h-full rounded-full ${Number(pred.confidence) > 75 ? 'bg-green-500' : 'bg-yellow-500'}`}
+                                className={`h-full rounded-full transition-all duration-1000 ${Number(pred.confidence) > 75 ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-gradient-to-r from-yellow-600 to-yellow-400'}`}
                                 style={{ width: `${Math.round(Number(pred.confidence || 0))}%` }}
                             />
                         </div>
@@ -155,7 +155,7 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
                             <Sparkles size={10} className="text-yellow-500" /> Alignment
                         </span>
                         <div className="flex items-baseline gap-1">
-                            <span className={`text-lg font-bold ${(pred as any).market_alignment > 70 ? 'text-green-500' : 'text-yellow-500'}`}>
+                            <span className={`text-lg font-bold tabular-nums ${(pred as any).market_alignment > 70 ? 'text-green-400' : 'text-yellow-400'}`}>
                                 {(pred as any).market_alignment}%
                             </span>
                         </div>
@@ -167,17 +167,17 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
             <div className="mt-auto">
                 <div className="relative p-0.5 rounded-2xl bg-gradient-to-b from-border/10 to-transparent">
                     <div className="flex rounded-[14px] bg-card/50 backdrop-blur-sm border border-white/5 divide-x divide-white/5 overflow-hidden">
-                        <div className="flex-1 p-3 flex flex-col items-center justify-center bg-white/[0.02]">
-                            <span className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1">Entry</span>
-                            <span className="font-mono text-base text-foreground/90">
-                                {currency}{Number(pred.current_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <div className="flex-1 p-3 flex flex-col items-center justify-center bg-white/[0.03]">
+                            <span className="text-[9px] uppercase tracking-widest text-muted-foreground/60 mb-1">Entry</span>
+                            <span className="font-mono text-base font-medium text-foreground/90 tabular-nums">
+                                {currency}{Number(pred.current_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                         </div>
-                        <div className="flex-1 p-3 flex flex-col items-center justify-center relative overflow-hidden">
+                        <div className="flex-1 p-3 flex flex-col items-center justify-center relative overflow-hidden group/target">
                             <div className={`absolute inset-0 opacity-10 ${isBullish ? 'bg-green-500' : 'bg-red-500'}`} />
                             <span className={`text-[9px] uppercase tracking-widest font-bold mb-1 ${isBullish ? 'text-green-500' : 'text-red-500'}`}>Target</span>
-                            <span className={`font-mono text-xl font-bold ${isBullish ? 'text-green-400' : 'text-red-400'}`}>
-                                {currency}{Number(pred.predicted_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            <span className={`font-mono text-xl font-bold tabular-nums ${isBullish ? 'text-green-400' : 'text-red-400'}`}>
+                                {currency}{Number(pred.predicted_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                         </div>
                     </div>

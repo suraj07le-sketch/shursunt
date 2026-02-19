@@ -38,8 +38,6 @@ function calculateStdDev(prices: number[], slope: number, intercept: number) {
 
 import { indianApiLimiter } from '@/lib/rateLimiter';
 
-// ... other imports ...
-
 export function useTrendMonitor({ symbol, isScript, enabled }: TrendMonitorProps) {
     const lastAlertTime = useRef<number>(0);
     const lastHugeAlertTime = useRef<number>(0);
@@ -56,8 +54,6 @@ export function useTrendMonitor({ symbol, isScript, enabled }: TrendMonitorProps
             try {
                 if (!isScript) {
                     // Crypto - Binance (Proxy)
-                    // Crypto APIs usually have higher limits, so we might not strictly need the limiter here, 
-                    // but if Binance proxy also hits 429, we could wrap this too. For now leaving as is.
                     const formattedSymbol = symbol.toUpperCase() + (symbol.toUpperCase().endsWith("USDT") ? "" : "USDT");
                     const res = await axios.get("/api/proxy", {
                         params: {
@@ -90,8 +86,12 @@ export function useTrendMonitor({ symbol, isScript, enabled }: TrendMonitorProps
                         closes = [stock.low_24h || currentPrice, currentPrice];
                     }
                 }
-            } catch (e) {
-                console.error(`[TrendMonitor] Fetch failed for ${symbol}:`, e);
+            } catch (e: any) {
+                if (e?.response?.status === 429) {
+                    console.warn(`[TrendMonitor] Rate limited for ${symbol}. Sequential queue will handle backoff.`);
+                } else {
+                    console.error(`[TrendMonitor] Fetch failed for ${symbol}:`, e.message);
+                }
                 return null;
             }
 
@@ -122,8 +122,11 @@ export function useTrendMonitor({ symbol, isScript, enabled }: TrendMonitorProps
             };
         },
         enabled: enabled && !!symbol,
-        staleTime: 5 * 60 * 1000,
-        refetchInterval: 30 * 60 * 1000,
+        staleTime: 10 * 60 * 1000, // Increased to 10 mins
+        refetchInterval: 60 * 60 * 1000, // 1 hour
+        retry: false,
+        refetchOnWindowFocus: false, // Avoid burst when user clicks back to tab
+        refetchOnMount: false, // Respect staleTime even on component remount
     });
 
     useEffect(() => {
