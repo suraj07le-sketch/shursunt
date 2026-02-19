@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/formatUtils";
 
 // Mock data to ensure it always looks good without API rate limits
 const INITIAL_COINS = [
@@ -57,7 +58,7 @@ export const MarketTicker = () => {
                         <div key={`${coin.symbol}-${i}`} className="flex items-center gap-2 whitespace-nowrap">
                             <span className="font-bold text-sm text-muted-foreground">{coin.symbol}</span>
                             <span className="font-mono text-sm font-medium text-foreground">
-                                ${coin.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {formatCurrency(coin.price, false)}
                             </span>
                             <span className={cn(
                                 "flex items-center text-xs font-bold",

@@ -4,6 +4,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/formatUtils";
 
 interface PriceTickerProps {
     symbol: string;
@@ -26,7 +27,7 @@ export function PriceTicker({ symbol, coinId }: PriceTickerProps) {
         >
             <div className="flex flex-col">
                 <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{symbol}</span>
-                <span className="text-sm font-black text-foreground">${price}</span>
+                <span className="text-sm font-black text-foreground">{formatCurrency(parseFloat(price.replace(/,/g, '')), false)}</span>
             </div>
 
             <div className={cn(

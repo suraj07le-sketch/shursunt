@@ -9,6 +9,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { formatCurrency } from "@/lib/formatUtils";
 
 interface CoinCardProps {
     coin: Coin;
@@ -145,7 +146,7 @@ export default function CoinCard({ coin }: CoinCardProps) {
 
             <div className="space-y-2">
                 <h4 className="text-2xl font-bold">
-                    {coin.asset_type === 'stock' ? '₹' : '$'}{coin.current_price?.toLocaleString() ?? "N/A"}
+                    {formatCurrency(coin.current_price, coin.asset_type === 'stock')}
                 </h4>
                 <div className={`flex items-center text-sm font-medium ${priceChangeColor}`}>
                     <Arrow className="w-4 h-4 mr-1" />

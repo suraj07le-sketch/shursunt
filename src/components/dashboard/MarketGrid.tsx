@@ -8,6 +8,7 @@ import AssetIcon from "./AssetIcon";
 import "crypto-icons/font.css";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/formatUtils";
 import { SpotlightCard } from "@/components/aceternity/SpotlightCard";
 import { TiltCard } from "@/components/ui/tilt-card";
 import { MagneticCard } from "@/components/ui/magnetic-button";
@@ -197,8 +198,7 @@ function MarketGridComponent({
                                     {/* Bottom Row: Price & Stats */}
                                     <div className="mt-4 w-full">
                                         <div className="text-xl md:text-2xl font-black tracking-tight text-foreground mb-0.5 group-hover:text-primary transition-colors duration-300">
-                                            {assetType === 'stock' ? '₹' : '$'}
-                                            {coin.current_price.toLocaleString()}
+                                            {formatCurrency(coin.current_price, assetType === 'stock')}
                                         </div>
 
                                         <div className={cn(

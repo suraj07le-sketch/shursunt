@@ -1,9 +1,7 @@
-```
 "use client";
 
 import { useTrendMonitor } from "@/hooks/useTrendMonitor";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Bell, BellOff, BrainCircuit, CheckCircle, Clock, TrendingDown, TrendingUp, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
@@ -77,23 +75,19 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
     const statusColor = pred.status === 'completed' ? 'text-green-500 bg-green-500/10' : 'text-yellow-500 bg-yellow-500/10';
     const trendColor = isBullish ? 'text-green-400' : 'text-red-400';
     const borderColor = isBullish ? 'hover:border-green-500/30' : 'hover:border-red-500/30';
-    const currency = isStock ? '₹' : '$';
 
     // Abstracted content to reuse in both Mobile (No Tilt) and Desktop (Tilt) views
-    const CardContent = ({ pred, isStock, trendColor, statusColor, isBullish, currency }: { pred: Prediction, isStock: boolean, trendColor: string, statusColor: string, isBullish: boolean, currency: string }) => (
+    const CardContent = ({ pred, isStock, trendColor, statusColor, isBullish }: { pred: Prediction, isStock: boolean, trendColor: string, statusColor: string, isBullish: boolean }) => (
         <div className="flex flex-col h-full relative z-10">
             {/* Header: Symbol & Status */}
             <div className="flex justify-between items-start mb-4">
-                <div className="space-y-2">
-                <h4 className="text-2xl font-bold">
-                    {formatCurrency(pred.current_price, isStock)}
-                </h4>
+                <div className="space-y-1">
                     <div className="flex items-center gap-2">
                         <h3 className="font-extrabold text-2xl text-foreground tracking-tight leading-none group-hover:text-primary transition-colors">
                             {cleanSymbol(pred.stock_name || pred.coin || pred.name)}
                         </h3>
                         {/* Status Icon Wrapper */}
-                        <div className={`p - 1 rounded - full border border - current / 20 ${ trendColor } bg - current / 5`}>
+                        <div className={`p-1 rounded-full border border-current/20 ${trendColor} bg-current/5`}>
                             {isBullish ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                         </div>
                     </div>
@@ -103,7 +97,7 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-muted/40 text-muted-foreground border border-border/30">
                             {pred.timeframe || "4H"}
                         </span>
-                        <span className={`px - 2 py - 0.5 rounded text - [10px] font - bold tracking - wider uppercase flex items - center gap - 1 border ${ isBullish ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20' } `}>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase flex items-center gap-1 border ${isBullish ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
                             {pred.trend || pred.signal || "HOLD"}
                         </span>
                     </div>
@@ -117,7 +111,7 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
                             setMonitorEnabled(!monitorEnabled);
                             toast.info(monitorEnabled ? "Trend alerts disabled" : "Trend alerts enabled (1h frame)");
                         }}
-                        className={`p - 2 rounded - xl transition - all ${ monitorEnabled ? 'text-blue-400 bg-blue-500/10' : 'text-muted-foreground/50 hover:text-foreground hover:bg-muted/50' } `}
+                        className={`p-2 rounded-xl transition-all ${monitorEnabled ? 'text-blue-400 bg-blue-500/10' : 'text-muted-foreground/50 hover:text-foreground hover:bg-muted/50'}`}
                     >
                         {monitorEnabled ? <Bell size={16} /> : <BellOff size={16} />}
                     </button>
@@ -127,12 +121,12 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
                             e.stopPropagation();
                             onRepredict?.();
                         }}
-                        className={`p - 2 rounded - xl transition - all text - muted - foreground / 50 hover: text - foreground hover: bg - muted / 50`}
+                        className={`p-2 rounded-xl transition-all text-muted-foreground/50 hover:text-foreground hover:bg-muted/50`}
                     >
                         <BrainCircuit size={16} />
                     </button>
 
-                    <div className={`p - 2 rounded - xl ${ statusColor } `}>
+                    <div className={`p-2 rounded-xl ${statusColor}`}>
                         {pred.status === 'completed' ? <CheckCircle size={16} /> : <Clock size={16} />}
                     </div>
                 </div>
@@ -146,8 +140,8 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
                         <span className="text-lg font-bold text-foreground tabular-nums">{Math.round(Number(pred.confidence || pred.accuracy_percent || 0))}%</span>
                         <div className="h-1.5 w-10 rounded-full bg-muted/50 overflow-hidden relative top-[-1px]">
                             <div
-                                className={`h - full rounded - full transition - all duration - 1000 ${ Number(pred.confidence) > 75 ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-gradient-to-r from-yellow-600 to-yellow-400' } `}
-                                style={{ width: `${ Math.round(Number(pred.confidence || 0)) }% ` }}
+                                className={`h-full rounded-full transition-all duration-1000 ${Number(pred.confidence) > 75 ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-gradient-to-r from-yellow-600 to-yellow-400'}`}
+                                style={{ width: `${Math.round(Number(pred.confidence || 0))}%` }}
                             />
                         </div>
                     </div>
@@ -161,7 +155,7 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
                             <Sparkles size={10} className="text-yellow-500" /> Alignment
                         </span>
                         <div className="flex items-baseline gap-1">
-                            <span className={`text - lg font - bold tabular - nums ${ (pred as any).market_alignment > 70 ? 'text-green-400' : 'text-yellow-400' } `}>
+                            <span className={`text-lg font-bold tabular-nums ${(pred as any).market_alignment > 70 ? 'text-green-400' : 'text-yellow-400'}`}>
                                 {(pred as any).market_alignment}%
                             </span>
                         </div>
@@ -180,9 +174,9 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
                             </span>
                         </div>
                         <div className="flex-1 p-3 flex flex-col items-center justify-center relative overflow-hidden group/target">
-                            <div className={`absolute inset - 0 opacity - 10 ${ isBullish ? 'bg-green-500' : 'bg-red-500' } `} />
-                            <span className={`text - [9px] uppercase tracking - widest font - bold mb - 1 ${ isBullish ? 'text-green-500' : 'text-red-500' } `}>Target</span>
-                            <span className={`font - mono text - xl font - bold tabular - nums ${ isBullish ? 'text-green-400' : 'text-red-400' } `}>
+                            <div className={`absolute inset-0 opacity-10 ${isBullish ? 'bg-green-500' : 'bg-red-500'}`} />
+                            <span className={`text-[9px] uppercase tracking-widest font-bold mb-1 ${isBullish ? 'text-green-500' : 'text-red-500'}`}>Target</span>
+                            <span className={`font-mono text-xl font-bold tabular-nums ${isBullish ? 'text-green-400' : 'text-red-400'}`}>
                                 {formatCurrency(pred.predicted_price, isStock)}
                             </span>
                         </div>
@@ -208,17 +202,17 @@ export function PredictionCard({ pred, isStock, onRepredict }: PredictionCardPro
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`
-                    group relative flex flex - col p - 6 rounded - 3xl overflow - hidden h - full
-bg - card / 40 backdrop - blur - xl
-                    border border - border / 50
-transition - all duration - 300 ${ borderColor }
-`}
+                    group relative flex flex-col p-6 rounded-3xl overflow-hidden h-full
+                    bg-card/40 backdrop-blur-xl
+                    border border-border/50
+                    transition-all duration-300 ${borderColor}
+                `}
             >
                 {/* Background Gradient - Simplified for Mobile */}
-                <div className={`absolute inset - 0 bg - gradient - to - br opacity - 0 group - hover: opacity - 10 transition - opacity duration - 500 ${ isBullish ? 'from-green-500 to-transparent' : 'from-red-500 to-transparent' } `} />
+                <div className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-500 ${isBullish ? 'from-green-500 to-transparent' : 'from-red-500 to-transparent'}`} />
 
                 {/* Content - Same as below but without Tilt wrapper overhead */}
-                <CardContent pred={pred} isStock={isStock} trendColor={trendColor} statusColor={statusColor} isBullish={isBullish} currency={currency} />
+                <CardContent pred={pred} isStock={isStock} trendColor={trendColor} statusColor={statusColor} isBullish={isBullish} />
             </motion.div>
         );
     }
@@ -235,17 +229,17 @@ transition - all duration - 300 ${ borderColor }
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`
-                    group relative flex flex - col p - 6 rounded - 3xl overflow - hidden h - full
-bg - card / 40 backdrop - blur - xl
-                    border border - border / 50
-transition - all duration - 300 ${ borderColor }
-hover: shadow - 2xl hover: shadow - primary / 5
-    `}
+                    group relative flex flex-col p-6 rounded-3xl overflow-hidden h-full
+                    bg-card/40 backdrop-blur-xl
+                    border border-border/50
+                    transition-all duration-300 ${borderColor}
+                    hover:shadow-2xl hover:shadow-primary/5
+                `}
             >
                 {/* Background Gradient */}
-                <div className={`absolute inset - 0 bg - gradient - to - br opacity - 0 group - hover: opacity - 10 transition - opacity duration - 500 ${ isBullish ? 'from-green-500 to-transparent' : 'from-red-500 to-transparent' } `} />
+                <div className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-500 ${isBullish ? 'from-green-500 to-transparent' : 'from-red-500 to-transparent'}`} />
 
-                <CardContent pred={pred} isStock={isStock} trendColor={trendColor} statusColor={statusColor} isBullish={isBullish} currency={currency} />
+                <CardContent pred={pred} isStock={isStock} trendColor={trendColor} statusColor={statusColor} isBullish={isBullish} />
             </motion.div>
         </Tilt>
     );
