@@ -118,7 +118,8 @@ function calculateVolatility(data: number[], period: number = 20): number[] {
         const slice = returns.slice(i - period, i);
         const mean = slice.reduce((a, b) => a + b, 0) / period;
         const variance = slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / period;
-        result.push(Math.sqrt(variance) * Math.sqrt(252) * 100);
+        // RETURN RAW PERIOD VOLATILITY (not annualized)
+        result.push(Math.sqrt(variance) * 100);
     }
     return result;
 }
@@ -442,7 +443,22 @@ export async function generatePrediction(asset: string, assetType: 'stock' | 'cr
         const shortTermBoost = (isShortTerm && agreementBonus > 0) ? 15 : 0;
         const adjustedConfidence = Math.min(99, (finalConfidence + shortTermBoost) * volMultiplier);
 
-        const predictedChange = totalDirection * (adjustedConfidence / 100) * (latestVol / 100);
+        // --- SCALE VOLATILITY BY TIMEFRAME ---
+        // latestVol is now the % standard deviation per candle for the chosen timeframe.
+        // We predict the move for the NEXT candle (for the validity window).
+        let predictedChange = totalDirection * (adjustedConfidence / 100) * (latestVol / 100);
+
+        // Safety Caps: Prevents extreme/impossible price targets
+        const maxMoveMap: Record<string, number> = {
+            '1h': 0.03,  // 3% max for 1h
+            '4h': 0.05,  // 5% max for 4h
+            '8h': 0.07,  // 7% max for 8h
+            '12h': 0.08, // 8% max for 12h
+            '1d': 0.12   // 12% max for 1d
+        };
+        const maxMove = maxMoveMap[timeframe] || 0.10;
+        predictedChange = Math.max(-maxMove, Math.min(maxMove, predictedChange));
+
         const predictedPrice = currentPrice * (1 + predictedChange);
 
         let signal = 'HOLD';

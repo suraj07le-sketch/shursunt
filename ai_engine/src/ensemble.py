@@ -4,6 +4,7 @@ from .lstm_model import CryptoLSTM
 from .xgb_model import CryptoXGB
 from .data_fetcher import DataFetcher
 from .features import FeatureEngineer
+from .visual_analyst import VisualAnalyst
 import joblib
 import os
 
@@ -17,6 +18,7 @@ class HybridEngine:
         self.xgb = CryptoXGB()
         self.fetcher = DataFetcher()
         self.fe = FeatureEngineer()
+        self.va = VisualAnalyst()
         
         # Weights (Meta-learner could learn these)
         self.w_lstm = 0.6
@@ -48,7 +50,11 @@ class HybridEngine:
         df = self.fe.add_all_features(df)
         current_price = df['close'].iloc[-1]
         
-        # 3. Predict (Mocking for now as we need trained models)
+        # 3. Visual Analysis (OpenCV)
+        visual_features = self.va.analyze_patterns(df['close'].values)
+        visual_impact = visual_features.get('visual_momentum', 0) * 0.15 # 15% weight for CV
+
+        # 4. Predict (Mocking for now as we need trained models)
         # In a real scenario, we'd process sequences for LSTM and flatten for XGB
         
         # Mock Prediction Logic based on rules for now until training is complete
@@ -56,29 +62,32 @@ class HybridEngine:
         
         # Simple logic based on indicators
         rsi = df['rsi'].iloc[-1]
-        macd = df['macd'].iloc[-1]
-        sma200 = df['sma_200'].iloc[-1]
         
-        # Simulated Model Output (to be replaced by actual model.predict)
-        predicted_price = current_price * (1 + (np.random.normal(0, 0.01))) 
+        # Combined Prediction (Models + Visual)
+        move_magnitude = np.random.normal(0, 0.01) + visual_impact
+        predicted_price = current_price * (1 + move_magnitude)
         
         # Signal Logic
         signal = "Hold"
-        confidence = 0.5
+        confidence = 0.5 + (abs(visual_impact) * 0.5) # CV Increases confidence
         
-        if predicted_price > current_price * 1.015 and rsi < 60:
+        if predicted_price > current_price * 1.01 and rsi < 65:
             signal = "Buy"
-            confidence = 0.8
-        elif predicted_price < current_price * 0.985 and rsi > 40:
+            if "TRIANGLE/WEDGE" in visual_features['patterns']:
+                confidence += 0.1 # Pattern confirmation bonus
+        elif predicted_price < current_price * 0.99 and rsi > 35:
             signal = "Sell"
-            confidence = 0.8
+            if "TRIANGLE/WEDGE" in visual_features['patterns']:
+                confidence += 0.1
             
         return {
             "pair": symbol,
             "prediction": signal,
-            "current_price": current_price,
-            "target_price": predicted_price,
-            "confidence": confidence,
+            "current_price": float(current_price),
+            "target_price": float(predicted_price),
+            "confidence": float(min(0.99, confidence)),
+            "visual_patterns": visual_features['patterns'],
+            "visual_momentum": float(visual_impact),
             "timestamp": pd.Timestamp.now().isoformat()
         }
 
