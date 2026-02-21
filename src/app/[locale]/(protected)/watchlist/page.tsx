@@ -113,7 +113,7 @@ function WatchlistRow({ item, onDelete }: { item: WatchlistItem; onDelete: (id: 
                                 exit={{ opacity: 0, y: 5, scale: 0.95 }}
                                 className="absolute right-0 top-full mt-1 w-24 bg-popover border border-border rounded-lg shadow-xl z-20 overflow-hidden py-1"
                             >
-                                {["15m", "1h", "4h", "8h", "1d", "3d", "1w"].map((tf) => (
+                                {["15m", "1h", "4h", "8h", "12h", "1d", "3d", "1w"].map((tf) => (
                                     <button
                                         key={tf}
                                         onClick={() => {

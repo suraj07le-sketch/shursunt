@@ -450,11 +450,14 @@ export async function generatePrediction(asset: string, assetType: 'stock' | 'cr
 
         // Safety Caps: Prevents extreme/impossible price targets
         const maxMoveMap: Record<string, number> = {
+            '15m': 0.015, // 1.5% max for 15m
             '1h': 0.03,  // 3% max for 1h
             '4h': 0.05,  // 5% max for 4h
             '8h': 0.07,  // 7% max for 8h
             '12h': 0.08, // 8% max for 12h
-            '1d': 0.12   // 12% max for 1d
+            '1d': 0.12,  // 12% max for 1d
+            '3d': 0.18,  // 18% max for 3d
+            '1w': 0.25   // 25% max for 1w
         };
         const maxMove = maxMoveMap[timeframe] || 0.10;
         predictedChange = Math.max(-maxMove, Math.min(maxMove, predictedChange));
@@ -498,9 +501,14 @@ export async function generatePrediction(asset: string, assetType: 'stock' | 'cr
 
         // NEXT 5 CANDLES VALIDITY (Refined for User: "next 4 and 8 hour")
         let validHours = 24;
+        if (timeframe === '15m') validHours = 0.25;
         if (timeframe === '1h') validHours = 1;
         if (timeframe === '4h') validHours = 4;
         if (timeframe === '8h') validHours = 8;
+        if (timeframe === '12h') validHours = 12;
+        if (timeframe === '1d') validHours = 24;
+        if (timeframe === '3d') validHours = 72;
+        if (timeframe === '1w') validHours = 168;
 
         const now = new Date();
         const validTill = new Date(now.getTime() + validHours * 60 * 60 * 1000);
