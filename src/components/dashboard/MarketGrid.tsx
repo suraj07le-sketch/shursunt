@@ -15,6 +15,7 @@ import { MagneticCard } from "@/components/ui/magnetic-button";
 import { Sparkles } from "@/components/ui/sparkles";
 import { HoverScale } from "@/components/ui/shine-effect";
 import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface MarketGridProps {
     coins: Coin[];
@@ -35,6 +36,7 @@ function MarketGridComponent({
 }: MarketGridProps) {
     const { user } = useAuth();
     const router = useRouter();
+    const queryClient = useQueryClient();
     const [watchlistIds, setWatchlistIds] = useState<Set<string>>(initialWatchlistIds || new Set());
 
     useEffect(() => {
@@ -148,36 +150,35 @@ function MarketGridComponent({
                                                     }
 
                                                     try {
-                                                        const localResult = LocalStorage.addToWatchlist(user.id, coin, assetType);
-
-                                                        if (!localResult) {
-                                                            toast.error("Item already in your watchlist!");
-                                                            return;
-                                                        }
-
-                                                        toast.success("Added to Watchlist!");
-                                                        onWatchlistChange?.();
-                                                        setWatchlistIds(prev => new Set([...prev, coin.id]));
-
                                                         const { supabase } = await import("@/lib/supabase");
-                                                        supabase.from('watchlist').insert({
+                                                        
+                                                        // 1. Attempt Supabase Insert first
+                                                        const { error } = await supabase.from('watchlist').insert({
                                                             user_id: user.id,
                                                             coin_id: coin.id,
                                                             coin_data: coin,
                                                             asset_type: assetType
-                                                        } as any).then(({ error }: any) => {
-                                                            if (error) {
-                                                                console.error("Supabase Backup Sync Failed:", error);
-                                                                toast.error("Failed to sync with cloud.");
-                                                                setWatchlistIds(prev => {
-                                                                    const next = new Set(prev);
-                                                                    next.delete(coin.id);
-                                                                    return next;
-                                                                });
-                                                            }
-                                                        });
+                                                        } as any);
+
+                                                        if (error) {
+                                                            console.error("Supabase Watchlist Error:", error);
+                                                            toast.error("Failed to sync with cloud. Please try again.");
+                                                            return;
+                                                        }
+
+                                                        // 2. Local Update
+                                                        LocalStorage.addToWatchlist(user.id, coin, assetType);
+                                                        setWatchlistIds(prev => new Set([...prev, coin.id]));
+                                                        
+                                                        // 3. Invalidate Global Cache
+                                                        await queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+                                                        
+                                                        toast.success("Added to Watchlist!");
+                                                        onWatchlistChange?.();
+
                                                     } catch (err) {
                                                         console.error("Watchlist Error:", err);
+                                                        toast.error("An unexpected error occurred.");
                                                     }
                                                 }}
                                                 disabled={watchlistIds.has(coin.id)}

@@ -227,29 +227,6 @@ export default function LoginPage() {
                 <AuthForm mode="login" />
             </motion.div>
 
-            {/* Decorative elements - responsive */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
-                className={cn(
-                    "absolute bottom-4 left-2 sm:bottom-8 sm:left-8 text-[8px] sm:text-[10px] font-mono uppercase tracking-[0.2em] sm:tracking-[0.3em] [writing-mode:vertical-lr] transition-colors duration-300 hidden xs:block",
-                    isLight ? "text-slate-400" : "text-slate-500"
-                )}
-            >
-                {t('npu')}
-            </motion.div>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className={cn(
-                    "absolute top-4 right-2 sm:top-8 sm:right-8 text-[8px] sm:text-[10px] font-mono uppercase tracking-[0.2em] sm:tracking-[0.3em] items-end flex transition-colors duration-300",
-                    isLight ? "text-slate-400" : "text-slate-500"
-                )}
-            >
-                {t('stream')}
-            </motion.div>
         </div>
     );
 }

@@ -56,20 +56,30 @@ class VisualAnalyst:
         trend_lines = []
         
         if lines is not None:
+            max_x = self.width - 1
             for line in lines:
                 x1, y1, x2, y2 = line[0]
                 
                 # Calculate slope (angle)
-                angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+                # In OpenCV, Y increases downwards. 
+                # So a price increase (y2 < y1) results in a negative slope in pixel space.
+                # We invert it so price increase = positive angle.
+                angle = -np.degrees(np.arctan2(y2 - y1, x2 - x1))
+                
+                # Weight by proximity to current time (right side of chart)
+                recency_weight = (max(x1, x2) / max_x) ** 2 # Quadratic weight for recent action
                 
                 # Horizontal-ish lines are Support/Resistance
                 if abs(angle) < 5:
-                    sr_lines.append(y1) # Normalized Y level
+                    sr_lines.append(y1) 
                 else:
-                    trend_lines.append(angle)
+                    trend_lines.append(angle * recency_weight)
             
             if trend_lines:
-                visual_momentum = np.mean(trend_lines) / 90.0 # Normalize -1 to 1
+                # Normalize visual momentum (-1 to 1 range)
+                visual_momentum = np.mean(trend_lines) / 45.0 
+                # Clip to [-1, 1]
+                visual_momentum = max(-1.0, min(1.0, visual_momentum))
 
         # 2. Heuristic Pattern Detection (Triangle/Channel)
         patterns = []
@@ -84,7 +94,7 @@ class VisualAnalyst:
             "visual_momentum": float(visual_momentum),
             "patterns": patterns,
             "sr_levels_count": len(sr_lines),
-            "has_visual_support": any(abs(price_series[-1] - l) < 5 for l in sr_lines) if sr_lines else False
+            "has_visual_support": any(abs(price_series[-1] - l) < 10 for l in sr_lines) if sr_lines else False
         }
 
 if __name__ == "__main__":

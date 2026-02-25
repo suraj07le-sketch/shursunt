@@ -162,20 +162,37 @@ function ensemblePrediction(features: { emaFast: number[]; emaSlow: number[]; rs
     }
     if (features.returns.length > 0) {
         const recentReturn = features.returns[features.returns.length - 1];
-        if (!isNaN(recentReturn)) { score += recentReturn * 2; weights += 0.2; }
+        if (!isNaN(recentReturn)) { score += recentReturn * 2.5; weights += 0.25; } // Boosted weight for price action
     }
-    if (features.returns.length > 5) {
-        const recentReturns = features.returns.slice(-5);
-        const validReturns = recentReturns.filter(r => !isNaN(r));
-        if (validReturns.length > 0) {
-            const avgReturn = validReturns.reduce((a, b) => a + b, 0) / validReturns.length;
-            if (!isNaN(avgReturn)) { score -= avgReturn * 0.15; weights += 0.15; }
-        }
-    }
+
+    // REMOVED bearish bias: average return subtraction was causing counter-trend signals during pumps
+
     const normalizedScore = weights > 0 ? score / weights : 0;
-    const direction = normalizedScore > 0.02 ? 1 : normalizedScore < -0.02 ? -1 : 0;
-    const confidence = Math.min(Math.abs(normalizedScore) * 7.5, 1) * 100;
+    const direction = normalizedScore > 0.015 ? 1 : normalizedScore < -0.015 ? -1 : 0; // Slightly more sensitive
+    const confidence = Math.min(Math.abs(normalizedScore) * 8.0, 1) * 100;
     return { direction, confidence: isNaN(confidence) ? 50 : confidence };
+}
+
+async function fetchPythonAIPrediction(symbol: string, timeframe: string): Promise<{ direction: number, confidence: number, patterns: string[] } | null> {
+    try {
+        const res = await fetch('http://localhost:8000/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pair: symbol, timeframe })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            const direction = data.prediction === 'Buy' ? 1 : data.prediction === 'Sell' ? -1 : 0;
+            return {
+                direction,
+                confidence: data.confidence * 100,
+                patterns: data.visual_patterns || []
+            };
+        }
+    } catch (e) {
+        console.warn(`[API] Python Engine unreachable for ${symbol}`);
+    }
+    return null;
 }
 
 // Data Fetching
@@ -322,32 +339,25 @@ async function fetchCryptoData(symbol: string, timeframe: string, expectedPrice?
 
 export async function generatePrediction(asset: string, assetType: 'stock' | 'crypto', timeframe: string = '4h', providedPrice?: number): Promise<any> {
     try {
+        const assetSymbol = assetType === 'crypto' ? asset.replace(/USDT$/i, '').toUpperCase() : asset.toUpperCase();
+
         // --- 1. CONCURRENT DATA FETCHING ---
-        // Fetch Macro (1d), timeframe specific data, and BTC trend in parallel
-        const macroPromise = assetType === 'stock' ? fetchStockData(asset, providedPrice) : fetchCryptoData(asset, '1d', providedPrice);
-
-        // If timeframe is 1d, don't fetch twice
+        const macroPromise = assetType === 'stock' ? fetchStockData(assetSymbol, providedPrice) : fetchCryptoData(assetSymbol, '1d', providedPrice);
         const timeframePromise = timeframe === '1d' ? macroPromise :
-            (assetType === 'stock' ? fetchStockData(asset, providedPrice) : fetchCryptoData(asset, timeframe, providedPrice));
-
-        // Fetch BTC for correlation if predicting another crypto
-        const btcPromise = (assetType === 'crypto' && asset.toUpperCase() !== 'BTC' && asset.toUpperCase() !== 'BITCOIN')
+            (assetType === 'stock' ? fetchStockData(assetSymbol, providedPrice) : fetchCryptoData(assetSymbol, timeframe, providedPrice));
+        const btcPromise = (assetType === 'crypto' && assetSymbol !== 'BTC')
             ? fetchCryptoData('BTC', timeframe, undefined)
             : Promise.resolve(null);
+        const pythonAIPromise = assetType === 'crypto' ? fetchPythonAIPrediction(`${assetSymbol}/USDT`, timeframe) : Promise.resolve(null);
 
-        const [macroData, marketData, btcData] = await Promise.all([macroPromise, timeframePromise, btcPromise]);
+        const [macroData, marketData, btcData, pythonAI] = await Promise.all([macroPromise, timeframePromise, btcPromise, pythonAIPromise]);
 
         if (!marketData || !macroData || marketData.close.length < 50) return { success: false, error: `Insufficient data for ${asset}.`, asset };
 
         const { close, high, low, volume } = marketData;
-        const macroClose = macroData.close;
+        const currentPrice = close[close.length - 1];
 
-        // Macro Trend (Daily)
-        const macroEmaFast = calculateEMA(macroClose, 12);
-        const macroEmaSlow = calculateEMA(macroClose, 50);
-        const macroTrend = macroEmaFast[macroEmaFast.length - 1] > macroEmaSlow[macroEmaSlow.length - 1] ? 'BULLISH' : 'BEARISH';
-
-        // Current Timeframe Analysis
+        // Indicators & Features
         const emaFast = calculateEMA(close, 12); const emaSlow = calculateEMA(close, 50);
         const rsi = calculateRSI(close, 14); const macd = calculateMACD(close);
         const volatility = calculateVolatility(close, 20); const atr = calculateATR(high, low, close, 14);
@@ -355,171 +365,72 @@ export async function generatePrediction(asset: string, assetType: 'stock' | 'cr
 
         const regime = detectMarketRegime(close, emaFast, emaSlow, volatility);
         const features = extractFeatures({ close, high, low, volume });
-        const lstm = sequencePrediction(close); const multiHorizon = multiHorizonPrediction(close);
-        const patterns = detectPatterns(close, high, low);
+        const lstm = sequencePrediction(close);
         const gbModel = trainGradientBoosting(features, 10, 0.1); const gbPred = predictGradientBoosting(gbModel, features);
         const ensembleAdv = advancedEnsemblePrediction(features, timeframe);
         const baseline = ensemblePrediction({ emaFast, emaSlow, rsi, macd, volatility, returns });
 
-        const currentPrice = close[close.length - 1];
+        // --- TRIPLE CONFLUENCE LOGIC ---
+        // 1. Technical Indicators (ensembleAdv)
+        // 2. Machine Learning Model (gbPred + lstm)
+        // 3. Visual Analysis (pythonAI)
 
-        // --- MULTI-MODEL CONSENSUS (THE KEY TO 90%) ---
-        // 1. LSTM (Sequence analysis)
-        // 2. Gradient Boosting (Tree ensemble)
-        // 3. Advanced Strategy Ensemble (Indicator based)
-        // 4. Baseline Regression
+        const signTech = Math.sign(ensembleAdv.direction);
+        const signML = Math.sign(gbPred.prediction + lstm.prediction);
+        const signVisual = pythonAI ? Math.sign(pythonAI.direction) : signTech; // Fallback if no Python engine result
 
-        // Regime-Specific Weighting
-        let lstmWeight = 0.35;
-        let gbWeight = 0.35;
-        let envWeight = 0.30;
-
-        if (regime === 'TRENDING') {
-            gbWeight = 0.45; // GB performs better in trends
-            lstmWeight = 0.25;
-        } else if (regime === 'RANGING') {
-            lstmWeight = 0.45; // LSTM captures reversals better in ranges
-            gbWeight = 0.25;
-        }
-
-        let totalDirection = (lstm.prediction * lstmWeight) + (gbPred.prediction * gbWeight) + (ensembleAdv.direction * envWeight);
-        let totalConf = (lstm.confidence * lstmWeight) + (gbPred.confidence * gbWeight) + (ensembleAdv.confidence * envWeight);
-
-        // BTC Correlation Adjustment
-        let marketAlignment = 50;
-        if (btcData && btcData.close.length > 50) {
-            const btcClose = btcData.close;
-            const btcEma12 = calculateEMA(btcClose, 12);
-            const btcEma50 = calculateEMA(btcClose, 50);
-            const btcTrend = btcEma12[btcEma12.length - 1] > btcEma50[btcEma50.length - 1] ? 1 : -1;
-            const currentDir = Math.sign(totalDirection);
-
-            if (currentDir === btcTrend) {
-                totalDirection *= 1.15; // Increased boost
-                totalConf += 8;
-                marketAlignment = 90;
-            } else if (currentDir !== 0) {
-                totalDirection *= 0.85;
-                marketAlignment = 25;
-            }
-        }
-
-        // --- RSI DIVERGENCE DETECTION ---
-        const currentRSI = rsi[rsi.length - 1];
-        const rsiLow = currentRSI < 30;
-        const rsiHigh = currentRSI > 70;
-        let divergenceBoost = 0;
-
-        const prices = close.slice(-20);
-        const priceTrend = prices[prices.length - 1] - prices[0];
-
-        // Simple heuristic: Price is down but RSI is already bouncing
-        if (priceTrend < 0 && currentRSI > 40 && currentRSI < 60) {
-            divergenceBoost = 10; // Potential hidden bullish divergence
-        }
-
-        // AGREEMENT BONUS
-        const signLstm = Math.sign(lstm.prediction);
-        const signGb = Math.sign(gbPred.prediction);
-        const signEnv = Math.sign(ensembleAdv.direction);
-
+        // Agreement Bonus: Stronger signal if all components agree
         let agreementBonus = 0;
-        if (signLstm === signGb && signGb === signEnv && signLstm !== 0) {
-            agreementBonus = 20;
-        } else if (signLstm !== signGb && signLstm !== signEnv) {
-            agreementBonus = -15;
+        let isTripleConfluence = false;
+        if (signTech === signML && (pythonAI ? signTech === signVisual : true) && signTech !== 0) {
+            agreementBonus = 25;
+            isTripleConfluence = true;
         }
 
-        const finalConfidence = Math.min(99, totalConf + agreementBonus + divergenceBoost + Math.abs(patterns.bullishScore - patterns.bearishScore) * 0.25);
+        // Weighted Confidence
+        let totalDirection = (lstm.prediction * 0.3) + (gbPred.prediction * 0.3) + (ensembleAdv.direction * 0.4);
+        if (pythonAI) {
+            totalDirection = (totalDirection * 0.7) + (pythonAI.direction * 0.3);
+        }
 
-        // --- FINAL PRICE & SIGNAL ---
+        let totalConf = (lstm.confidence * 0.3) + (gbPred.confidence * 0.3) + (ensembleAdv.confidence * 0.4);
+        if (pythonAI) {
+            totalConf = (totalConf * 0.7) + (pythonAI.confidence * 0.3);
+        }
+
+        const finalConfidence = Math.min(99, totalConf + agreementBonus);
+
+        // Signal Decision
+        let signal = 'HOLD';
         const isShortTerm = ['1h', '4h', '8h', '12h'].includes(timeframe);
+        const tradeThreshold = isShortTerm ? 0.015 : 0.03;
+
+        // Trigger BUY if strong positive direction OR Triple Confluence
+        if (totalDirection > tradeThreshold || (isTripleConfluence && totalDirection > 0)) {
+            signal = 'BUY';
+        } else if (totalDirection < -tradeThreshold || (isTripleConfluence && totalDirection < 0)) {
+            signal = 'SELL';
+        }
+
+        // Price Target Calculation
         const latestVol = volatility.length > 0 ? volatility[volatility.length - 1] : 2;
-
-        const volMultiplier = isShortTerm
-            ? (latestVol > 5 ? 1.15 : 1.0)
-            : (latestVol > 5 ? 0.75 : 1.0);
-
-        const shortTermBoost = (isShortTerm && agreementBonus > 0) ? 15 : 0;
-        const adjustedConfidence = Math.min(99, (finalConfidence + shortTermBoost) * volMultiplier);
-
-        // --- SCALE VOLATILITY BY TIMEFRAME ---
-        // latestVol is now the % standard deviation per candle for the chosen timeframe.
-        // We predict the move for the NEXT candle (for the validity window).
-        let predictedChange = totalDirection * (adjustedConfidence / 100) * (latestVol / 100);
-
-        // Safety Caps: Prevents extreme/impossible price targets
-        const maxMoveMap: Record<string, number> = {
-            '15m': 0.015, // 1.5% max for 15m
-            '1h': 0.03,  // 3% max for 1h
-            '4h': 0.05,  // 5% max for 4h
-            '8h': 0.07,  // 7% max for 8h
-            '12h': 0.08, // 8% max for 12h
-            '1d': 0.12,  // 12% max for 1d
-            '3d': 0.18,  // 18% max for 3d
-            '1w': 0.25   // 25% max for 1w
-        };
-        const maxMove = maxMoveMap[timeframe] || 0.10;
-        predictedChange = Math.max(-maxMove, Math.min(maxMove, predictedChange));
-
+        const predictedChange = totalDirection * (finalConfidence / 100) * (latestVol / 50); // Normalized vol impact
         const predictedPrice = currentPrice * (1 + predictedChange);
 
-        let signal = 'HOLD';
         const latestATR = atr[atr.length - 1] || currentPrice * 0.02;
-        let stopLoss = currentPrice;
-
-        // --- THE "NEXT 5 CANDLES" LOGIC ---
-        // User wants accurate trend for next ~5 units.
-        // We relax the threshold for 1h/4h to allow more active trading.
-
-        const confidenceThreshold = isShortTerm ? 55 : 75; // Lowered to 55 for short term to catch more moves
-
-        const isEligible = adjustedConfidence > confidenceThreshold;
-
-        // MOMENTUM CHECK: If short term, we care more about recent momentum (RSI/MACD) than macro trend
-        const momentumAligned = (ensembleAdv.direction > 0 && totalDirection > 0) || (ensembleAdv.direction < 0 && totalDirection < 0);
-
-        const macroAligned = (totalDirection > 0 && macroTrend === 'BULLISH') || (totalDirection < 0 && macroTrend === 'BEARISH');
-
-        // We allow trade IF:
-        // 1. Confidence is high enough
-        // 2. Momentum aligns with prediction (essential for "next 5 candles")
-        // 3. EITHER: Macro aligns OR it's a short-term trade (we ignore macro for 1h/4h scalp)
-
-        const shouldTrade = isEligible && momentumAligned && (isShortTerm || macroAligned);
-
-        if (shouldTrade) {
-            const tradeThreshold = isShortTerm ? 0.015 : 0.03; // Catch smaller moves for scalp
-            if (totalDirection > tradeThreshold) {
-                signal = 'BUY';
-                stopLoss = currentPrice - latestATR * (isShortTerm ? 1.2 : 2.0); // Tighter stops for scalp
-            } else if (totalDirection < -tradeThreshold) {
-                signal = 'SELL';
-                stopLoss = currentPrice + latestATR * (isShortTerm ? 1.2 : 2.0);
-            }
-        }
-
-        // NEXT 5 CANDLES VALIDITY (Refined for User: "next 4 and 8 hour")
-        let validHours = 24;
-        if (timeframe === '15m') validHours = 0.25;
-        if (timeframe === '1h') validHours = 1;
-        if (timeframe === '4h') validHours = 4;
-        if (timeframe === '8h') validHours = 8;
-        if (timeframe === '12h') validHours = 12;
-        if (timeframe === '1d') validHours = 24;
-        if (timeframe === '3d') validHours = 72;
-        if (timeframe === '1w') validHours = 168;
+        const stopLoss = signal === 'BUY' ? currentPrice - latestATR * 1.5 : signal === 'SELL' ? currentPrice + latestATR * 1.5 : currentPrice;
 
         const now = new Date();
-        const validTill = new Date(now.getTime() + validHours * 60 * 60 * 1000);
+        const validTill = new Date(now.getTime() + (parseInt(timeframe) || 4) * 60 * 60 * 1000);
 
         return {
             success: true, asset, type: assetType, timeframe, current_price: currentPrice,
             predicted_price: predictedPrice, prediction_change_percent: ((predictedPrice - currentPrice) / currentPrice) * 100,
             signal, confidence: finalConfidence, stop_loss: stopLoss, market_regime: regime,
             prediction_time: now.toISOString(),
-            predicted_time: validTill.toISOString(), // Mapped to predicted_time for frontend compatibility
-            market_alignment: marketAlignment
+            predicted_time: validTill.toISOString(),
+            confluence: isTripleConfluence ? 'TRIPLE' : 'PARTIAL',
+            visual_patterns: pythonAI?.patterns || []
         };
     } catch (e: any) {
         console.error('[API] Prediction error:', e); return { success: false, error: e.message };

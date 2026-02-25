@@ -14,6 +14,7 @@ import { MarketIndices } from "./MarketIndices";
 import { MarketActivityBento } from "./MarketActivityBento";
 import { HighConvictionPanel } from "./HighConvictionPanel";
 import AssetIcon from "./AssetIcon";
+import { formatCurrency } from "@/lib/formatUtils";
 
 
 
@@ -266,6 +267,7 @@ export default function ClientDashboard({ initialData }: { initialData: Coin[] }
                             recentPredictions.slice(0, 10).map((pred, i) => {
                                 const prediction = pred.signal || pred.trend || 'HOLD';
                                 const isBullish = prediction === 'UP' || prediction === 'BUY' || prediction === 'BULLISH';
+                                const isStock = pred.type === 'stock' || !!pred.stock_name;
                                 return (
                                     <motion.div
                                         key={i}
@@ -287,7 +289,7 @@ export default function ClientDashboard({ initialData }: { initialData: Coin[] }
                                         <div className="text-right">
                                             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Target</div>
                                             <div className={`font-mono text-xl font-bold ${isBullish ? 'text-green-500' : 'text-red-500'}`}>
-                                                {pred.predictedPrice || pred.predicted_price}
+                                                {formatCurrency(pred.predictedPrice || pred.predicted_price, isStock)}
                                             </div>
                                         </div>
                                     </motion.div>
@@ -354,7 +356,7 @@ export default function ClientDashboard({ initialData }: { initialData: Coin[] }
                                         </div>
                                         <div className="text-right">
                                             <div className="font-mono font-bold text-foreground">
-                                                {item.asset_type === 'stock' ? '₹' : '$'}{Number(price || 0).toLocaleString()}
+                                                {formatCurrency(price, item.asset_type === 'stock')}
                                             </div>
                                             <div className={`text-xs font-bold px-2 py-0.5 rounded-md inline-block mt-1 ${isPositive ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
                                                 {isPositive ? '+' : ''}{change.toFixed(2)}%

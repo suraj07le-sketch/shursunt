@@ -16,6 +16,8 @@ import { SpotlightCard } from "@/components/aceternity/SpotlightCard";
 import { HoverScale } from "@/components/ui/shine-effect";
 import { Sparkles } from "@/components/ui/sparkles";
 import { SolarisButton } from "@/components/ui/SolarisButton";
+import { formatCurrency } from "@/lib/formatUtils";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface MarketTableProps {
     coins: Coin[];
@@ -35,6 +37,7 @@ export default function MarketTable({
     const [search, setSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const router = useRouter();
+    const queryClient = useQueryClient();
     const { user } = useAuth();
     const itemsPerPage = 7;
 
@@ -60,24 +63,26 @@ export default function MarketTable({
                 return;
             }
 
-            const localResult = LocalStorage.addToWatchlist(user.id, coin, assetType);
-
-            if (!localResult) {
-                toast.error("Item already in your watchlist!");
-                return;
-            }
-
-            toast.success("Added to Watchlist!");
-            onWatchlistChange?.();
-
-            supabase.from('watchlist').insert({
+            const { error } = await supabase.from('watchlist').insert({
                 user_id: user.id,
                 coin_id: coin.id,
                 coin_data: coin,
                 asset_type: assetType
-            } as any).then(({ error }: any) => {
-                if (error) console.error("Supabase Backup Sync Failed:", error);
-            });
+            } as any);
+
+            if (error) {
+                console.error("Supabase Watchlist Error:", error);
+                toast.error("Cloud sync failed. Please try again.");
+                // Remove from local if cloud fails to keep them in sync
+                LocalStorage.removeFromWatchlist(user.id, coin.id);
+                return;
+            }
+
+            // Sync React Query cache immediately
+            await queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+
+            toast.success("Added to Watchlist!");
+            onWatchlistChange?.();
         } catch (err) {
             console.error("Critical Error:", err);
             toast.error("Failed to update watchlist. Please try again.");
@@ -92,13 +97,14 @@ export default function MarketTable({
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-border/50 shadow-2xl bg-card/60 backdrop-blur-xl">
-                <div className="max-h-[500px] overflow-y-auto thin-scrollbar">
+                <div className="max-h-[500px] overflow-y-auto thin-scrollbar overflow-x-hidden">
                     <table className="w-full text-left border-collapse cursor-default">
                         <thead className="text-[10px] md:text-xs uppercase tracking-widest text-muted-foreground border-b border-border/50 bg-black/90 sticky top-0 backdrop-blur-md z-30">
                             <tr>
-                                <th className="py-4 px-3 md:p-4 font-black w-1/2 text-left pl-6">Asset</th>
-                                <th className="py-4 px-3 md:p-4 text-center font-black w-[30%]">Market Cap</th>
-                                <th className="py-4 px-3 md:p-4 text-right font-black w-[20%] pr-6">Action</th>
+                                <th className="py-4 px-4 md:px-6 font-bold text-[10px] md:text-xs text-muted-foreground/60 w-auto text-left">Asset</th>
+                                <th className="py-4 px-4 md:px-6 font-bold text-[10px] md:text-xs text-muted-foreground/60 w-auto text-right hidden md:table-cell">Price</th>
+                                <th className="py-4 px-6 font-bold text-[10px] md:text-xs text-muted-foreground/60 w-auto text-center hidden md:table-cell">Market Cap</th>
+                                <th className="py-4 px-4 md:px-6 font-bold text-[10px] md:text-xs text-muted-foreground/60 w-auto text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border/30">
@@ -109,33 +115,39 @@ export default function MarketTable({
                                     className="group relative cursor-pointer transition-all duration-300 hover:bg-primary/5"
                                 >
                                     {/* Spotlight effect on hover */}
-                                    <td className="py-5 px-3 md:p-4 relative text-left align-middle pl-6">
+                                    <td className="py-5 px-2 md:p-4 relative text-left align-middle pl-4 md:pl-6 overflow-hidden">
                                         {/* Spotlight effect on hover */}
                                         <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                                         {/* Animated border indicator */}
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary opacity-0 group-hover:opacity-100 transition-all duration-300" />
 
-                                        <div className="flex items-center justify-start gap-3 md:gap-4">
+                                        <div className="flex items-center justify-start gap-2 md:gap-4 overflow-hidden">
                                             <div className="relative flex-shrink-0">
                                                 <div className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                                                    <AssetIcon asset={coin} type={assetType} size={36} />
+                                                    <AssetIcon asset={coin} type={assetType} size={28} className="md:w-[36px] md:h-[36px]" />
                                                 </div>
                                                 <div className="absolute inset-0 rounded-full border-2 border-primary/30 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-300" />
                                             </div>
-                                            <div className="min-w-0 flex flex-col items-start text-left">
+                                            <div className="min-w-0 flex flex-col items-start text-left overflow-hidden">
                                                 <HoverScale scale={1.03} duration={150}>
-                                                    <div className="font-black text-sm md:text-base leading-tight truncate text-foreground group-hover:text-primary transition-colors">
+                                                    <div className="font-black text-xs md:text-base leading-tight truncate text-foreground group-hover:text-primary transition-colors">
                                                         {coin.name}
                                                     </div>
                                                 </HoverScale>
-                                                <div className="text-[10px] md:text-xs text-muted-foreground font-bold group-hover:text-foreground transition-colors mt-0.5">
+                                                <div className="text-[9px] md:text-xs text-muted-foreground font-bold group-hover:text-foreground transition-colors mt-0.5 truncate w-full">
                                                     {coin.symbol.toUpperCase()}
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
 
-                                    <td className="py-5 px-3 md:p-4 text-center relative align-middle">
+                                    <td className="py-4 px-4 md:px-6 text-right relative align-middle hidden md:table-cell">
+                                        <div className="text-xs md:text-sm font-mono font-bold text-foreground tabular-nums">
+                                            {formatCurrency(coin.current_price, assetType === 'stock')}
+                                        </div>
+                                    </td>
+
+                                    <td className="py-5 px-3 md:p-4 text-center relative align-middle hidden md:table-cell">
                                         <HoverScale scale={1.02} duration={150}>
                                             <div className="text-xs md:text-sm font-bold text-foreground/80 tabular-nums group-hover:text-foreground transition-colors">
                                                 {/* Logic: If market_cap exists, show it. If not, and it's a stock, show simplified estimate or N/A. Avoid rank unless crypto. */}
@@ -153,17 +165,17 @@ export default function MarketTable({
                                         </HoverScale>
                                     </td>
 
-                                    <td className="py-5 px-3 md:p-4 relative">
-                                        <div className="flex justify-end gap-1.5 md:gap-3">
+                                    <td className="py-4 px-2 md:p-4 relative text-right pr-4 md:pr-6 align-middle">
+                                        <div className="flex justify-end gap-2 md:gap-3 items-center">
                                             <SolarisButton
-                                                variant="small"
+                                                variant="icon"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     if (onSelect) {
                                                         onSelect(coin.symbol);
                                                     }
                                                 }}
-                                                className="h-8 !bg-indigo-500 hover:!bg-indigo-600 !text-white border-none shadow-sm font-bold tracking-wide"
+                                                className="h-8 w-8 md:h-10 md:w-auto md:px-4 !bg-white/5 hover:!bg-indigo-500/20 !text-muted-foreground hover:text-indigo-400 border-none shadow-none font-bold tracking-wide flex-shrink-0"
                                                 icon={Eye}
                                             >
                                                 <span className="hidden md:inline">View</span>
@@ -172,17 +184,18 @@ export default function MarketTable({
                                                 sparklesCount={8}
                                                 sparklesColor="#00cc88"
                                                 sparkleSize={2}
+                                                className="flex-shrink-0 inline-flex items-center"
                                             >
                                                 <SolarisButton
-                                                    variant="small"
+                                                    variant="icon"
                                                     onClick={(e) => addToWatchlist(e, coin)}
                                                     disabled={watchlistIds.has(coin.id)}
                                                     active={watchlistIds.has(coin.id)}
                                                     className={cn(
-                                                        "h-8",
+                                                        "h-8 w-8 md:h-10 md:w-auto md:px-4 flex-shrink-0",
                                                         watchlistIds.has(coin.id)
-                                                            ? "!bg-green-500/20 !text-green-500 border-green-500/20"
-                                                            : "!bg-primary/20 hover:!bg-primary/30 !text-primary border border-primary/20"
+                                                            ? "!bg-green-500/20 !text-green-500 border-none"
+                                                            : "!bg-white/5 hover:!bg-primary/20 !text-muted-foreground hover:text-primary border-none"
                                                     )}
                                                     icon={watchlistIds.has(coin.id) ? Check : Plus}
                                                 >

@@ -19,6 +19,7 @@ type AuthContextType = {
     profile: Profile | null;
     loading: boolean;
     signOut: () => Promise<void>;
+    isNetworkBlocked: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -27,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
     profile: null,
     loading: true,
     signOut: async () => { },
+    isNetworkBlocked: false,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -34,6 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isNetworkBlocked, setIsNetworkBlocked] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -48,7 +51,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
                 if (!mounted) return;
 
-                if (error) throw error;
+                if (error) {
+                    // Detect Supabase connection timeouts/DNS hijacking
+                    if (error.message?.includes('Failed to fetch') || error.status === 0) {
+                        setIsNetworkBlocked(true);
+                    }
+                    throw error;
+                }
+
+                setIsNetworkBlocked(false);
                 setSession(session);
                 setUser(session?.user ?? null);
 
@@ -62,8 +73,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     if (mounted) setProfile(data);
                 }
             } catch (error: any) {
-                if (error.name !== 'AbortError' && mounted) {
-                    console.error("Auth initialization error:", error);
+                if (mounted) {
+                    if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+                        setIsNetworkBlocked(true);
+                    }
+                    if (error.name !== 'AbortError') {
+                        console.error("Auth initialization error:", error);
+                    }
                 }
             } finally {
                 if (mounted) setLoading(false);
@@ -146,7 +162,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, [user]); // Removed signOut dependency loop, functions are stable
 
     return (
-        <AuthContext.Provider value={{ user, session, profile, loading, signOut }}>
+        <AuthContext.Provider value={{ user, session, profile, loading, signOut, isNetworkBlocked }}>
+            {isNetworkBlocked && (
+                <div className="fixed top-0 left-0 right-0 z-[9999] bg-red-600 text-white p-2 text-center text-sm font-medium">
+                    ⚠️ Network Error: Connection to Supabase timed out. Your ISP (Jio) might be blocking the connection.
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="ml-4 underline hover:no-underline"
+                    >
+                        Retry Connection
+                    </button>
+                </div>
+            )}
             {children}
         </AuthContext.Provider>
     );
