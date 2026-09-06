@@ -1,5 +1,13 @@
 import pandas as pd
 import numpy as np
+import sys
+import os
+
+# Add the current directory to sys.path to ensure 'src' is findable
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
 from src.ensemble import HybridEngine
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from src.data_fetcher import DataFetcher

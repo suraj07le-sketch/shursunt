@@ -40,14 +40,21 @@ class RateLimiter {
             const task = this.queue.shift();
             if (task) {
                 try {
-                    await task();
-                    // Normal delay after success
-                    await new Promise(res => setTimeout(res, this.delayMs));
+                    const result = await task();
+                    
+                    // Specific check for fetch Response objects which don't "throw" on 429
+                    if (result instanceof Response && result.status === 429) {
+                        console.warn(`[RateLimiter] 429 Response detected. Sleeping for 60s...`);
+                        await new Promise(res => setTimeout(res, 60000));
+                    } else {
+                        // Normal delay after success
+                        await new Promise(res => setTimeout(res, this.delayMs));
+                    }
                 } catch (err: any) {
-                    // If we hit a 429, wait much longer (e.g. 1 minute) to let the window reset
-                    const is429 = err?.response?.status === 429 || err?.status === 429 || err?.message?.includes('429');
+                    // Handle thrown errors (network errors, or intentional throws from fetch wrappers)
+                    const is429 = err?.status === 429 || err?.message?.includes('429');
                     if (is429) {
-                        console.warn(`[RateLimiter] 429 detected. Sleeping for 60s...`);
+                        console.warn(`[RateLimiter] 429 Error caught. Sleeping for 60s...`);
                         await new Promise(res => setTimeout(res, 60000));
                     } else {
                         // Regular delay on other failures

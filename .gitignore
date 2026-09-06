@@ -49,3 +49,14 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Local / build artifacts
+build_errors.txt
+test_prediction_v2.ts
+

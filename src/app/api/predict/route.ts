@@ -1,25 +1,28 @@
-﻿/** 
- * REFRESH ATTEMPT: FIXED YAHOO FINANCE v3 INITIALIZATION 
- * Timestamp: 2026-02-05 02:18
+/**
+ * PRO TRADING PREDICTION ENGINE v3.0
+ * 8-Signal Confluence | Sentiment Analysis | Volume Profile
+ * Regime Filter | Win-Rate Feedback | ATR Risk Management
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import YahooFinance from 'yahoo-finance2';
 
-// Create instance for Yahoo Finance v3
 const yf = new YahooFinance();
 
-// Import ML models
-import { extractFeatures, type MarketData as MLMarketData } from '@/lib/ml/features';
+// Import Real ML models
+import { extractFeatures, type MarketData as MLMarketData, type TechnicalFeatures } from '@/lib/ml/features';
 import { advancedEnsemblePrediction, trainGradientBoosting, predictGradientBoosting } from '@/lib/ml/gradient-boost';
-import { sequencePrediction, multiHorizonPrediction, detectPatterns } from '@/lib/ml/lstm-predictor';
+import { sequencePrediction, multiHorizonPrediction, detectPatterns, asyncSequencePrediction } from '@/lib/ml/lstm-predictor';
+import { classifyChartPattern, type PatternCNNResult } from '@/lib/ml/pattern-cnn';
+import { fetchSentiment } from '@/lib/sentiment';
+import { analyzeVolume } from '@/lib/volumeProfile';
+import { fetchWinRate } from '@/lib/outcomeTracker';
 
 // ============================================
-// PROFESSIONAL QUANTITATIVE PREDICTION ENGINE
+// CONFIG & CACHE
 // ============================================
 
-const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || 'demo';
 const INDIAN_API_KEY = process.env.INDIAN_API_KEY || "";
 
 declare global {
@@ -27,18 +30,16 @@ declare global {
     var priceCache: Map<string, { data: any, timestamp: number }>;
 }
 
-if (!global.modelCache) {
-    global.modelCache = new Map<string, any>();
-}
-if (!global.priceCache) {
-    global.priceCache = new Map<string, { data: any, timestamp: number }>();
-}
+if (!global.modelCache) global.modelCache = new Map<string, any>();
+if (!global.priceCache) global.priceCache = new Map<string, { data: any, timestamp: number }>();
 
-const modelCache = global.modelCache;
 const priceCache = global.priceCache;
 const CACHE_DURATION = 60 * 1000;
 
-// Indicators
+// ============================================
+// TECHNICAL INDICATORS (used for route-level calculations)
+// ============================================
+
 function calculateEMA(data: number[], period: number): number[] {
     const result: number[] = [];
     if (data.length === 0) return result;
@@ -67,30 +68,23 @@ function calculateRSI(data: number[], period: number = 14): number[] {
         avgGain = (avgGain * (period - 1) + gains[i]) / period;
         avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
         const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-        const rsi = 100 - (100 / (1 + rs));
-        result.push(rsi);
+        result.push(100 - (100 / (1 + rs)));
     }
     return result;
 }
 
-function calculateMACD(data: number[], fastPeriod: number = 12, slowPeriod: number = 26, signalPeriod: number = 9) {
-    const emaFast = calculateEMA(data, fastPeriod);
-    const emaSlow = calculateEMA(data, slowPeriod);
-    const macdLine: number[] = [];
-    if (emaFast.length === 0 || emaSlow.length === 0) return { macd: [], signal: [], histogram: [] };
-    const offset = emaSlow.length - emaFast.length;
-    for (let i = 0; i < emaFast.length; i++) {
-        const slowIdx = i + offset;
-        if (slowIdx >= 0 && slowIdx < emaSlow.length) macdLine.push(emaFast[i] - emaSlow[slowIdx]);
+function calculateVolatility(data: number[], period: number = 20): number[] {
+    const result: number[] = [];
+    if (data.length <= period) return result;
+    const returns: number[] = [];
+    for (let i = 1; i < data.length; i++) returns.push(Math.log(data[i] / data[i - 1]));
+    for (let i = period; i < returns.length; i++) {
+        const slice = returns.slice(i - period, i);
+        const mean = slice.reduce((a, b) => a + b, 0) / period;
+        const variance = slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / period;
+        result.push(Math.sqrt(variance) * 100);
     }
-    const signalLine = calculateEMA(macdLine, signalPeriod);
-    const macdHistogram: number[] = [];
-    const histOffset = signalLine.length - macdLine.length;
-    for (let i = 0; i < macdLine.length - histOffset; i++) {
-        const macdIdx = i + histOffset;
-        if (macdIdx >= 0 && macdIdx < macdLine.length) macdHistogram.push(macdLine[macdIdx] - signalLine[i]);
-    }
-    return { macd: macdLine, signal: signalLine, histogram: macdHistogram };
+    return result;
 }
 
 function calculateATR(highData: number[], lowData: number[], closeData: number[], period: number = 14): number[] {
@@ -109,69 +103,9 @@ function calculateATR(highData: number[], lowData: number[], closeData: number[]
     return result;
 }
 
-function calculateVolatility(data: number[], period: number = 20): number[] {
-    const result: number[] = [];
-    if (data.length <= period) return result;
-    const returns: number[] = [];
-    for (let i = 1; i < data.length; i++) returns.push(Math.log(data[i] / data[i - 1]));
-    for (let i = period; i < returns.length; i++) {
-        const slice = returns.slice(i - period, i);
-        const mean = slice.reduce((a, b) => a + b, 0) / period;
-        const variance = slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / period;
-        // RETURN RAW PERIOD VOLATILITY (not annualized)
-        result.push(Math.sqrt(variance) * 100);
-    }
-    return result;
-}
-
-function detectMarketRegime(closeData: number[], emaFast: number[], emaSlow: number[], volatility: number[]): 'TRENDING' | 'RANGING' {
-    if (emaFast.length === 0 || emaSlow.length === 0 || volatility.length === 0) return 'RANGING';
-    const latestFast = emaFast[emaFast.length - 1];
-    const latestSlow = emaSlow[emaSlow.length - 1];
-    const latestVol = volatility[volatility.length - 1];
-    const emaSeparation = Math.abs(latestFast - latestSlow) / latestSlow * 100;
-    const avgVol = volatility.reduce((a, b) => a + b, 0) / volatility.length;
-    if (emaSeparation > 1.5 && latestVol > avgVol * 0.9) return 'TRENDING';
-    if (emaSeparation < 0.5 && latestVol < avgVol * 1.1) return 'RANGING';
-    return emaSeparation > 0.8 ? 'TRENDING' : 'RANGING';
-}
-
-function ensemblePrediction(features: { emaFast: number[]; emaSlow: number[]; rsi: number[]; macd: { histogram: number[] }; volatility: number[]; returns: number[]; }): { direction: number; confidence: number } {
-    let score = 0; let weights = 0;
-    if (features.emaFast.length > 0 && features.emaSlow.length > 0) {
-        const fastVal = features.emaFast[features.emaFast.length - 1];
-        const slowVal = features.emaSlow[features.emaSlow.length - 1];
-        if (!isNaN(fastVal) && !isNaN(slowVal) && slowVal !== 0) {
-            const trend = (fastVal - slowVal) / slowVal;
-            score += trend * 0.25; weights += 0.25;
-        }
-    }
-    if (features.rsi.length > 0) {
-        const rsi = features.rsi[features.rsi.length - 1];
-        if (!isNaN(rsi)) {
-            const rsiSignal = (rsi - 50) / 50;
-            score += rsiSignal * 0.2; weights += 0.2;
-        }
-    }
-    if (features.macd.histogram.length > 0) {
-        const hist = features.macd.histogram[features.macd.histogram.length - 1];
-        if (!isNaN(hist)) {
-            const histNormalized = Math.tanh(hist * 1000);
-            score += histNormalized * 0.2; weights += 0.2;
-        }
-    }
-    if (features.returns.length > 0) {
-        const recentReturn = features.returns[features.returns.length - 1];
-        if (!isNaN(recentReturn)) { score += recentReturn * 2.5; weights += 0.25; } // Boosted weight for price action
-    }
-
-    // REMOVED bearish bias: average return subtraction was causing counter-trend signals during pumps
-
-    const normalizedScore = weights > 0 ? score / weights : 0;
-    const direction = normalizedScore > 0.015 ? 1 : normalizedScore < -0.015 ? -1 : 0; // Slightly more sensitive
-    const confidence = Math.min(Math.abs(normalizedScore) * 8.0, 1) * 100;
-    return { direction, confidence: isNaN(confidence) ? 50 : confidence };
-}
+// ============================================
+// PYTHON AI ENGINE (OpenCV Visual Analysis)
+// ============================================
 
 async function fetchPythonAIPrediction(symbol: string, timeframe: string): Promise<{ direction: number, confidence: number, patterns: string[] } | null> {
     try {
@@ -183,11 +117,7 @@ async function fetchPythonAIPrediction(symbol: string, timeframe: string): Promi
         if (res.ok) {
             const data = await res.json();
             const direction = data.prediction === 'Buy' ? 1 : data.prediction === 'Sell' ? -1 : 0;
-            return {
-                direction,
-                confidence: data.confidence * 100,
-                patterns: data.visual_patterns || []
-            };
+            return { direction, confidence: data.confidence * 100, patterns: data.visual_patterns || [] };
         }
     } catch (e) {
         console.warn(`[API] Python Engine unreachable for ${symbol}`);
@@ -195,20 +125,18 @@ async function fetchPythonAIPrediction(symbol: string, timeframe: string): Promi
     return null;
 }
 
-// Data Fetching
-async function fetchStockData(symbol: string, expectedPrice?: number): Promise<{ close: number[]; high: number[]; low: number[]; volume: number[] } | null> {
+// ============================================
+// DATA FETCHING — 400+ Candles
+// ============================================
+
+async function fetchStockData(symbol: string, expectedPrice?: number): Promise<{ close: number[]; high: number[]; low: number[]; volume: number[]; open: number[] } | null> {
     try {
         const cacheKey = `stock_${symbol}`;
         const cached = priceCache.get(cacheKey);
-        if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-            console.log(`[API] Returning cached stock data for ${symbol}`);
-            return cached.data as any;
-        }
+        if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) return cached.data as any;
 
         console.log(`[API] Trying Indian Stock API for symbol: ${symbol}`);
         const url = `https://stock.indianapi.in/historical_data?stock_name=${symbol.toUpperCase()}&period=1m&filter=default`;
-
-        // Add timeout to Indian API
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -225,14 +153,15 @@ async function fetchStockData(symbol: string, expectedPrice?: number): Promise<{
                 const close = priceDataset.values.map((v: any) => Number(v[1]));
                 const high = close.map((p: number) => p * 1.005);
                 const low = close.map((p: number) => p * 0.995);
+                const open = close.map((p: number, i: number) => i > 0 ? close[i - 1] : p);
                 const volume = close.map(() => 100000);
-                const result = { close, high, low, volume };
+                const result = { close, high, low, volume, open };
                 priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
                 return result;
             }
         }
     } catch (error) {
-        console.error(`[API] Indian API error or timeout for ${symbol}:`, error);
+        console.error(`[API] Indian API error for ${symbol}:`, error);
     }
 
     const symbolsToTry = [`${symbol.toUpperCase()}.NS`, `${symbol.toUpperCase()}.BO`, symbol.toUpperCase()];
@@ -242,64 +171,59 @@ async function fetchStockData(symbol: string, expectedPrice?: number): Promise<{
             const endDate = new Date();
             const startDate = new Date();
             startDate.setFullYear(endDate.getFullYear() - 2);
-
-            // USE INSTANCE yf
-            const results = (await yf.historical(s, {
-                period1: startDate,
-                period2: endDate,
-                interval: '1d'
-            })) as any[];
-
-            if (results && results.length > 50) {
-                const close: number[] = [];
-                const high: number[] = [];
-                const low: number[] = [];
-                const volume: number[] = [];
-                for (const day of results) {
-                    if (day.close && day.high && day.low && day.volume) {
-                        close.push(day.close); high.push(day.high); low.push(day.low); volume.push(day.volume);
+            // Use chart() — historical() API was removed by Yahoo
+            const chartData = await yf.chart(s, { period1: startDate, period2: endDate, interval: '1d' });
+            const quotes = chartData?.quotes || [];
+            if (quotes.length > 50) {
+                const close: number[] = [], high: number[] = [], low: number[] = [], volume: number[] = [], open: number[] = [];
+                for (const day of quotes) {
+                    // Skip any bars with null values (Yahoo sometimes returns incomplete bars)
+                    if (day.close != null && day.high != null && day.low != null && day.volume != null) {
+                        close.push(day.close); high.push(day.high); low.push(day.low);
+                        volume.push(day.volume); open.push(day.open ?? day.close);
                     }
                 }
-                return { close, high, low, volume };
+                if (close.length > 50) {
+                    console.log(`[API] Yahoo chart() OK for ${s}: ${close.length} bars`);
+                    return { close, high, low, volume, open };
+                }
             }
         } catch (error) {
-            console.error(`[API] Error fetching stock data for ${s}:`, error);
+            console.error(`[API] Yahoo error for ${s}:`, (error as Error).message);
         }
     }
     return null;
 }
 
-async function fetchCryptoData(symbol: string, timeframe: string, expectedPrice?: number): Promise<{ close: number[]; high: number[]; low: number[]; volume: number[] } | null> {
+async function fetchCryptoData(symbol: string, timeframe: string, expectedPrice?: number): Promise<{ close: number[]; high: number[]; low: number[]; volume: number[]; open: number[] } | null> {
     const symbolMap: Record<string, string> = { 'bitcoin': 'BTC', 'btc': 'BTC', 'ethereum': 'ETH', 'eth': 'ETH', 'solana': 'SOL', 'sol': 'SOL', 'dogecoin': 'DOGE', 'doge': 'DOGE', 'ripple': 'XRP', 'xrp': 'XRP', 'cardano': 'ADA', 'polkadot': 'DOT', 'chainlink': 'LINK', 'polygon': 'MATIC' };
     let baseSymbol = expectedPrice ? symbol : (symbolMap[symbol.toLowerCase()] || symbol.toUpperCase());
-
-    // Sanitize: Avoid doubling USDT if it's already in the symbol
     const cleanBase = baseSymbol.replace(/USDT$/i, '').toUpperCase();
 
     try {
         const cacheKey = `crypto_${symbol}_${timeframe}`;
         const cached = priceCache.get(cacheKey);
-        if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-            return cached.data as any;
-        }
+        if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) return cached.data as any;
 
         const interval = timeframe || '4h';
         const pair = `${cleanBase}USDT`;
-        console.log(`[API] Fetching Binance data for ${pair} (${interval})`);
+        console.log(`[API] Fetching Binance data for ${pair} (${interval}) — 400 candles`);
 
-        const url = `https://api.binance.com/api/v3/klines?symbol=${pair}&interval=${interval}&limit=1000`;
+        // Fetch 400 candles from Binance
+        const url = `https://api.binance.com/api/v3/klines?symbol=${pair}&interval=${interval}&limit=400`;
         const response = await fetch(url);
         if (response.ok) {
             const data = await response.json();
-            const close: number[] = [], high: number[] = [], low: number[] = [], volume: number[] = [];
+            const close: number[] = [], high: number[] = [], low: number[] = [], volume: number[] = [], open: number[] = [];
             for (const k of data) {
-                close.push(parseFloat(k[4]));
+                open.push(parseFloat(k[1]));
                 high.push(parseFloat(k[2]));
                 low.push(parseFloat(k[3]));
+                close.push(parseFloat(k[4]));
                 volume.push(parseFloat(k[5]));
             }
             if (close.length > 50) {
-                const result = { close, high, low, volume };
+                const result = { close, high, low, volume, open };
                 priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
                 return result;
             }
@@ -310,26 +234,20 @@ async function fetchCryptoData(symbol: string, timeframe: string, expectedPrice?
 
     try {
         const yahooSymbol = `${cleanBase}-USD`;
-        console.log(`[API] Fetching Yahoo Finance Chart for ${yahooSymbol}`);
-
-        // Use chart() instead of historical() to avoid deprecation and "No data found" errors
         const chartData = await yf.chart(yahooSymbol, {
             period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
             period2: new Date(),
             interval: '1d'
         });
-
         if (chartData.quotes && chartData.quotes.length > 50) {
-            const close: number[] = [], high: number[] = [], low: number[] = [], volume: number[] = [];
+            const close: number[] = [], high: number[] = [], low: number[] = [], volume: number[] = [], open: number[] = [];
             for (const d of chartData.quotes) {
                 if (d.close && d.high && d.low && d.volume) {
-                    close.push(d.close);
-                    high.push(d.high);
-                    low.push(d.low);
-                    volume.push(d.volume);
+                    close.push(d.close); high.push(d.high); low.push(d.low);
+                    volume.push(d.volume); open.push(d.open || d.close);
                 }
             }
-            return { close, high, low, volume };
+            return { close, high, low, volume, open };
         }
     } catch (e) {
         console.error(`[API] Yahoo Crypto error for ${cleanBase}:`, e);
@@ -337,105 +255,563 @@ async function fetchCryptoData(symbol: string, timeframe: string, expectedPrice?
     return null;
 }
 
+// ============================================
+// MULTI-TIMEFRAME CONFLUENCE ANALYZER
+// ============================================
+
+async function getMultiTimeframeSignal(
+    asset: string,
+    assetType: 'stock' | 'crypto',
+    primaryTimeframe: string
+): Promise<{ mtfAgreement: boolean; dailyBias: number; dailyConfidence: number } | null> {
+    // Only perform multi-timeframe analysis if the primary timeframe is NOT daily
+    if (primaryTimeframe === '1d' || primaryTimeframe === '1w') return null;
+    if (assetType !== 'crypto') return null;
+
+    try {
+        const dailyData = await fetchCryptoData(asset, '1d');
+        if (!dailyData || dailyData.close.length < 100) return null;
+
+        const dailyFeatures = extractFeatures({
+            close: dailyData.close,
+            high: dailyData.high,
+            low: dailyData.low,
+            volume: dailyData.volume,
+            open: dailyData.open
+        });
+
+        const dailyEnsemble = advancedEnsemblePrediction(dailyFeatures, '1d');
+
+        return {
+            mtfAgreement: true,
+            dailyBias: dailyEnsemble.direction,
+            dailyConfidence: dailyEnsemble.confidence
+        };
+    } catch (e) {
+        console.warn('[API] MTF analysis failed:', e);
+        return null;
+    }
+}
+
+// ============================================
+// SUPPORT / RESISTANCE LINE ANALYZER
+// ============================================
+
+/**
+ * Detects dynamic support levels from price history and determines:
+ * - Is price bouncing off support? (BUY signal)
+ * - Is price breaking down through support? (SELL signal)
+ * - How close is the price to a key level?
+ * Returns a direction (-1 to +1) and confidence.
+ */
+function analyzeSupportLines(
+    close: number[],
+    high: number[],
+    low: number[],
+    atr: number
+): { direction: number; confidence: number; srSignal: string; detail: string; supportLevel: number; resistanceLevel: number } {
+    if (close.length < 30) return { direction: 0, confidence: 0, srSignal: 'NEUTRAL', detail: 'Not enough data', supportLevel: 0, resistanceLevel: 0 };
+
+    const current = close[close.length - 1];
+    const lookback = Math.min(close.length, 100);
+    const recentClose = close.slice(-lookback);
+    const recentHigh = high.slice(-lookback);
+    const recentLow = low.slice(-lookback);
+
+    // --- 1. Find key support levels (local minima clusters) ---
+    const swingLows: number[] = [];
+    for (let i = 2; i < recentLow.length - 2; i++) {
+        if (
+            recentLow[i] < recentLow[i - 1] &&
+            recentLow[i] < recentLow[i - 2] &&
+            recentLow[i] < recentLow[i + 1] &&
+            recentLow[i] < recentLow[i + 2]
+        ) {
+            swingLows.push(recentLow[i]);
+        }
+    }
+
+    // --- 2. Find key resistance levels (local maxima clusters) ---
+    const swingHighs: number[] = [];
+    for (let i = 2; i < recentHigh.length - 2; i++) {
+        if (
+            recentHigh[i] > recentHigh[i - 1] &&
+            recentHigh[i] > recentHigh[i - 2] &&
+            recentHigh[i] > recentHigh[i + 1] &&
+            recentHigh[i] > recentHigh[i + 2]
+        ) {
+            swingHighs.push(recentHigh[i]);
+        }
+    }
+
+    // --- 3. Cluster levels within 1 ATR ---
+    const cluster = (levels: number[], tolerance: number): number[] => {
+        if (levels.length === 0) return [];
+        const sorted = [...levels].sort((a, b) => a - b);
+        const clusters: number[] = [];
+        let group = [sorted[0]];
+        for (let i = 1; i < sorted.length; i++) {
+            if (sorted[i] - sorted[i - 1] < tolerance) {
+                group.push(sorted[i]);
+            } else {
+                clusters.push(group.reduce((a, b) => a + b) / group.length);
+                group = [sorted[i]];
+            }
+        }
+        clusters.push(group.reduce((a, b) => a + b) / group.length);
+        return clusters;
+    };
+
+    const tolerance = atr * 1.0;
+    const supportLevels = cluster(swingLows, tolerance).filter(l => l < current);
+    const resistanceLevels = cluster(swingHighs, tolerance).filter(l => l > current);
+
+    // Nearest support and resistance
+    const nearestSupport = supportLevels.length > 0 ? Math.max(...supportLevels) : current * 0.97;
+    const nearestResistance = resistanceLevels.length > 0 ? Math.min(...resistanceLevels) : current * 1.03;
+
+    const distToSupport = current - nearestSupport;
+    const distToResistance = nearestResistance - current;
+    const totalRange = distToSupport + distToResistance;
+    const srPosition = totalRange > 0 ? distToSupport / totalRange : 0.5; // 0 = at support, 1 = at resistance
+
+    // --- 4. Detect bounce (last 3 candles low tested support and reversed up) ---
+    const last3Lows = low.slice(-3);
+    const bounceThreshold = atr * 0.5;
+    const isBouncing = last3Lows.some(l => Math.abs(l - nearestSupport) < bounceThreshold) && close[close.length - 1] > close[close.length - 2];
+
+    // --- 5. Detect breakdown (price closed below support) ---
+    const prevClose = close[close.length - 2] || current;
+    const isBreaking = prevClose > nearestSupport && current < nearestSupport;
+
+    // --- 6. Compute direction and confidence ---
+    let direction = 0;
+    let confidence = 50;
+    let srSignal = 'NEUTRAL';
+    let detail = '';
+
+    if (isBreaking) {
+        direction = -1;
+        confidence = 80;
+        srSignal = 'BREAKDOWN';
+        detail = `Broke below support ₹${nearestSupport.toFixed(2)}`;
+    } else if (isBouncing && distToSupport < atr * 1.5) {
+        direction = 1;
+        confidence = 78;
+        srSignal = 'BOUNCE';
+        detail = `Bouncing off support ₹${nearestSupport.toFixed(2)}`;
+    } else if (srPosition < 0.25) {
+        // Near support — bullish bias
+        direction = 0.6;
+        confidence = 62;
+        srSignal = 'NEAR_SUPPORT';
+        detail = `Near support ₹${nearestSupport.toFixed(2)} (${((distToSupport / current) * 100).toFixed(1)}% away)`;
+    } else if (srPosition > 0.75) {
+        // Near resistance — bearish bias
+        direction = -0.5;
+        confidence = 58;
+        srSignal = 'NEAR_RESISTANCE';
+        detail = `Near resistance ₹${nearestResistance.toFixed(2)} (${((distToResistance / current) * 100).toFixed(1)}% away)`;
+    } else {
+        // Mid-range — neutral
+        direction = 0;
+        confidence = 45;
+        srSignal = 'MID_RANGE';
+        detail = `Between S:₹${nearestSupport.toFixed(2)} R:₹${nearestResistance.toFixed(2)}`;
+    }
+
+    return { direction, confidence, srSignal, detail, supportLevel: nearestSupport, resistanceLevel: nearestResistance };
+}
+
+// ============================================
+// RISK-REWARD CALCULATOR
+// ============================================
+
+function calculateRiskReward(
+    currentPrice: number,
+    signal: string,
+    features: TechnicalFeatures,
+    atr: number
+): { stopLoss: number; takeProfit: number; riskRewardRatio: number } {
+    // Use ATR-based stops with S/R levels
+    const atrMultiplier = 1.5;
+    const tpMultiplier = 3.0; // Minimum 2:1 R:R target
+
+    let stopLoss: number, takeProfit: number;
+
+    if (signal === 'BUY') {
+        // Stop below support or 1.5 ATR below entry, whichever is tighter
+        const atrStop = currentPrice - atr * atrMultiplier;
+        const srStop = features.nearest_support * 0.998; // Slightly below support
+        stopLoss = Math.max(atrStop, srStop); // Use tighter stop
+
+        // Take profit at resistance or 3 ATR above entry
+        const atrTP = currentPrice + atr * tpMultiplier;
+        const srTP = features.nearest_resistance * 0.998;
+        takeProfit = Math.min(atrTP, srTP > currentPrice ? srTP : atrTP);
+    } else if (signal === 'SELL') {
+        // Stop above resistance or 1.5 ATR above entry
+        const atrStop = currentPrice + atr * atrMultiplier;
+        const srStop = features.nearest_resistance * 1.002;
+        stopLoss = Math.min(atrStop, srStop);
+
+        // Take profit at support or 3 ATR below entry
+        const atrTP = currentPrice - atr * tpMultiplier;
+        const srTP = features.nearest_support * 1.002;
+        takeProfit = Math.max(atrTP, srTP < currentPrice ? srTP : atrTP);
+    } else {
+        stopLoss = currentPrice;
+        takeProfit = currentPrice;
+    }
+
+    const risk = Math.abs(currentPrice - stopLoss);
+    const reward = Math.abs(takeProfit - currentPrice);
+    const riskRewardRatio = risk > 0 ? reward / risk : 0;
+
+    return { stopLoss, takeProfit, riskRewardRatio };
+}
+
+// ============================================
+// MAIN PREDICTION ENGINE v2.0
+// ============================================
+
 export async function generatePrediction(asset: string, assetType: 'stock' | 'crypto', timeframe: string = '4h', providedPrice?: number): Promise<any> {
     try {
         const assetSymbol = assetType === 'crypto' ? asset.replace(/USDT$/i, '').toUpperCase() : asset.toUpperCase();
+        console.log(`[PredictV2] Starting prediction for ${assetSymbol} (${assetType}) @ ${timeframe}`);
 
-        // --- 1. CONCURRENT DATA FETCHING ---
-        const macroPromise = assetType === 'stock' ? fetchStockData(assetSymbol, providedPrice) : fetchCryptoData(assetSymbol, '1d', providedPrice);
-        const timeframePromise = timeframe === '1d' ? macroPromise :
-            (assetType === 'stock' ? fetchStockData(assetSymbol, providedPrice) : fetchCryptoData(assetSymbol, timeframe, providedPrice));
-        const btcPromise = (assetType === 'crypto' && assetSymbol !== 'BTC')
-            ? fetchCryptoData('BTC', timeframe, undefined)
+        // --- 1. CONCURRENT DATA FETCHING (400 candles) ---
+        const marketPromise = assetType === 'stock'
+            ? fetchStockData(assetSymbol, providedPrice)
+            : fetchCryptoData(assetSymbol, timeframe, providedPrice);
+
+        const pythonAIPromise = assetType === 'crypto'
+            ? fetchPythonAIPrediction(`${assetSymbol}/USDT`, timeframe)
             : Promise.resolve(null);
-        const pythonAIPromise = assetType === 'crypto' ? fetchPythonAIPrediction(`${assetSymbol}/USDT`, timeframe) : Promise.resolve(null);
 
-        const [macroData, marketData, btcData, pythonAI] = await Promise.all([macroPromise, timeframePromise, btcPromise, pythonAIPromise]);
+        const mtfPromise = getMultiTimeframeSignal(assetSymbol, assetType, timeframe);
 
-        if (!marketData || !macroData || marketData.close.length < 50) return { success: false, error: `Insufficient data for ${asset}.`, asset };
+        const [marketData, pythonAI, mtfResult] = await Promise.all([marketPromise, pythonAIPromise, mtfPromise]);
 
-        const { close, high, low, volume } = marketData;
+        if (!marketData || marketData.close.length < 100) {
+            return { success: false, error: `Insufficient data for ${asset}. Need 100+ candles, got ${marketData?.close.length || 0}.`, asset };
+        }
+
+        const { close, high, low, volume, open } = marketData;
         const currentPrice = close[close.length - 1];
 
-        // Indicators & Features
-        const emaFast = calculateEMA(close, 12); const emaSlow = calculateEMA(close, 50);
-        const rsi = calculateRSI(close, 14); const macd = calculateMACD(close);
-        const volatility = calculateVolatility(close, 20); const atr = calculateATR(high, low, close, 14);
-        const returns: number[] = []; for (let i = 1; i < close.length; i++) returns.push(Math.log(close[i] / close[i - 1]));
+        console.log(`[PredictV3] Got ${close.length} candles for ${assetSymbol}. Price: ${currentPrice}`);
 
-        const regime = detectMarketRegime(close, emaFast, emaSlow, volatility);
-        const features = extractFeatures({ close, high, low, volume });
-        const lstm = sequencePrediction(close);
-        const gbModel = trainGradientBoosting(features, 10, 0.1); const gbPred = predictGradientBoosting(gbModel, features);
-        const ensembleAdv = advancedEnsemblePrediction(features, timeframe);
-        const baseline = ensemblePrediction({ emaFast, emaSlow, rsi, macd, volatility, returns });
+        // --- 2. EXTRACT ALL FEATURES (30+ indicators) ---
+        const features = extractFeatures({ close, high, low, volume, open });
 
-        // --- TRIPLE CONFLUENCE LOGIC ---
-        // 1. Technical Indicators (ensembleAdv)
-        // 2. Machine Learning Model (gbPred + lstm)
-        // 3. Visual Analysis (pythonAI)
+        // --- 3. ROUTE-LEVEL INDICATORS ---
+        const emaFast = calculateEMA(close, 12);
+        const emaSlow = calculateEMA(close, 50);
+        const volatility = calculateVolatility(close, 20);
+        const atr = calculateATR(high, low, close, 14);
+        const returns: number[] = [];
+        for (let i = 1; i < close.length; i++) returns.push(Math.log(close[i] / close[i - 1]));
+        const latestATRVal = atr.length > 0 ? atr[atr.length - 1] : currentPrice * 0.02;
 
-        const signTech = Math.sign(ensembleAdv.direction);
-        const signML = Math.sign(gbPred.prediction + lstm.prediction);
-        const signVisual = pythonAI ? Math.sign(pythonAI.direction) : signTech; // Fallback if no Python engine result
+        // --- REGIME FILTER: Don't trade choppy markets ---
+        const isChoppy = features.adx < 20;
+        const regime = features.adx > 25 ? 'TRENDING' : isChoppy ? 'CHOPPY' : 'RANGING';
 
-        // Agreement Bonus: Stronger signal if all components agree
+        // --- 4. RUN ALL ML MODELS (concurrently where possible) ---
+
+        // 4a. Technical Ensemble
+        const ensembleResult = advancedEnsemblePrediction(features, timeframe);
+
+        // 4b. Random Forest
+        const rfModel = trainGradientBoosting(features, 30, 0.1, { close, high, low, volume, open });
+        const rfPrediction = predictGradientBoosting(rfModel, features);
+
+        // 4c. LSTM Sequence Prediction
+        const lstmResult = sequencePrediction(close, { close, high, low, volume, open });
+
+        // 4d. Chart Pattern CNN
+        let cnnResult: PatternCNNResult | null = null;
+        try {
+            cnnResult = await classifyChartPattern(open, high, low, close);
+        } catch (e) {
+            console.warn('[PredictV3] CNN skipped:', e);
+        }
+
+        // 4e. Structural Pattern Detection
+        const structuralPatterns = detectPatterns(close, high, low);
+
+        // 4f. Support/Resistance Line Analysis
+        const srAnalysis = analyzeSupportLines(close, high, low, latestATRVal);
+
+        // 4g. Volume Profile & OBV Divergence
+        const volumeAnalysis = analyzeVolume(close, high, low, volume, srAnalysis.supportLevel, latestATRVal);
+
+        // 4h. Sentiment + Win-Rate (with 3s hard timeout so network issues never stall the prediction)
+        const withTimeout = <T>(promise: Promise<T>, fallback: T, ms = 3000): Promise<T> =>
+            Promise.race([promise, new Promise<T>(res => setTimeout(() => res(fallback), ms))]);
+
+        const [sentimentResult, winRateResult] = await Promise.all([
+            withTimeout(fetchSentiment(assetSymbol, assetType), { score: 0, confidence: 30, label: 'NEUTRAL' as const, source: 'timeout', articleCount: 0 }),
+            withTimeout(fetchWinRate(assetSymbol, assetType), { winRate: 0.5, sampleSize: 0, correctionFactor: 0 })
+        ]);
+
+        console.log(`[PredictV3] Sentiment: ${sentimentResult.label}(${sentimentResult.confidence.toFixed(0)}%) | Volume: ${volumeAnalysis.signal} | SR: ${srAnalysis.srSignal} | WinRate: ${(winRateResult.winRate * 100).toFixed(0)}%(n=${winRateResult.sampleSize}) | Regime: ${regime}`);
+
+        // --- 5. OCTET CONFLUENCE ENGINE (8 signals) ---
+        // Weight allocation:
+        // Technical Ensemble:   20%
+        // Random Forest ML:     17%
+        // LSTM Sequence:        15%
+        // Support/Resistance:   15%
+        // Volume Profile/OBV:   13%
+        // Sentiment:            10%
+        // Visual/CNN:            7%
+        // Candlestick Patterns:  3%
+
+        const signTech    = Math.sign(ensembleResult.direction);
+        const signRF      = Math.sign(rfPrediction.prediction);
+        const signLSTM    = Math.sign(lstmResult.prediction);
+        const signSR      = Math.sign(srAnalysis.direction);
+        const signVol     = Math.sign(volumeAnalysis.direction);
+        const signSentiment = Math.sign(sentimentResult.score);
+        const signCNN     = cnnResult ? Math.sign(cnnResult.bullishSignal) : signTech;
+        const signVisual  = pythonAI ? Math.sign(pythonAI.direction) : signCNN;
+
+        // Weighted direction (sums to 100%)
+        let totalDirection =
+            ensembleResult.direction   * 0.20 +
+            rfPrediction.prediction    * 0.17 +
+            lstmResult.prediction      * 0.15 +
+            srAnalysis.direction       * 0.15 +
+            volumeAnalysis.direction   * 0.13 +
+            sentimentResult.score      * 0.10;
+
+        if (cnnResult && cnnResult.pattern !== 'ERROR' && cnnResult.pattern !== 'INSUFFICIENT_DATA') {
+            totalDirection += cnnResult.bullishSignal * 0.07;
+        } else if (pythonAI) {
+            totalDirection += pythonAI.direction * 0.07;
+        } else {
+            totalDirection += ensembleResult.direction * 0.07;
+        }
+
+        const candleSignal = features.candlestick_bullish_score - features.candlestick_bearish_score;
+        totalDirection += Math.tanh(candleSignal) * 0.03;
+
+        // Weighted confidence
+        let totalConf =
+            ensembleResult.confidence              * 0.20 +
+            rfPrediction.confidence                * 0.17 +
+            lstmResult.confidence                  * 0.15 +
+            srAnalysis.confidence                  * 0.15 +
+            volumeAnalysis.confidence              * 0.13 +
+            sentimentResult.confidence             * 0.10 +
+            (cnnResult ? cnnResult.confidence : 50)* 0.07 +
+            (pythonAI ? pythonAI.confidence : 50)  * 0.03;
+
+        // --- 6. CONFLUENCE AGREEMENT BONUS (8 signals) ---
+        const allSigns = [signTech, signRF, signLSTM, signSR, signVol, signSentiment, signCNN, signVisual].filter(s => s !== 0);
+        const posVotes = allSigns.filter(s => s > 0).length;
+        const negVotes = allSigns.filter(s => s < 0).length;
+        const dominantVotes = Math.max(posVotes, negVotes);
+        const totalVotes = allSigns.length;
+
+        let confluenceLevel = 'NONE';
         let agreementBonus = 0;
-        let isTripleConfluence = false;
-        if (signTech === signML && (pythonAI ? signTech === signVisual : true) && signTech !== 0) {
-            agreementBonus = 25;
-            isTripleConfluence = true;
+
+        // S/R Bounce/Breakdown event bonus
+        if (srAnalysis.srSignal === 'BOUNCE' || srAnalysis.srSignal === 'BREAKDOWN') agreementBonus += 10;
+        else if (srAnalysis.srSignal === 'NEAR_SUPPORT' || srAnalysis.srSignal === 'NEAR_RESISTANCE') agreementBonus += 4;
+
+        // Volume spike at support is a very powerful signal
+        if (volumeAnalysis.signal === 'VOLUME_SPIKE_SUPPORT') agreementBonus += 12;
+        else if (volumeAnalysis.signal === 'OBV_BULL_DIVERGENCE' || volumeAnalysis.signal === 'OBV_BEAR_DIVERGENCE') agreementBonus += 8;
+
+        // Sentiment bonus (strong sentiment in signal direction)
+        if (Math.abs(sentimentResult.score) > 0.5 && Math.sign(sentimentResult.score) === Math.sign(totalDirection)) agreementBonus += 6;
+
+        if (dominantVotes >= 7 && totalVotes >= 7) {
+            confluenceLevel = 'OCTET';
+            agreementBonus += 30;
+        } else if (dominantVotes >= 5 && totalVotes >= 5) {
+            confluenceLevel = 'SEXTET';
+            agreementBonus += 22;
+        } else if (dominantVotes >= 4 && totalVotes >= 4) {
+            confluenceLevel = 'QUINTUPLE';
+            agreementBonus += 15;
+        } else if (dominantVotes >= 3 && totalVotes >= 3) {
+            confluenceLevel = 'TRIPLE';
+            agreementBonus += 10;
+        } else if (dominantVotes >= 2) {
+            confluenceLevel = 'PARTIAL';
+            agreementBonus += 4;
         }
 
-        // Weighted Confidence
-        let totalDirection = (lstm.prediction * 0.3) + (gbPred.prediction * 0.3) + (ensembleAdv.direction * 0.4);
-        if (pythonAI) {
-            totalDirection = (totalDirection * 0.7) + (pythonAI.direction * 0.3);
+        // --- 7. MULTI-TIMEFRAME VALIDATION ---
+        let mtfStatus = 'N/A';
+        if (mtfResult) {
+            const primaryDir = Math.sign(totalDirection);
+            if (primaryDir === mtfResult.dailyBias && mtfResult.dailyBias !== 0) {
+                mtfStatus = 'CONFIRMED';
+                agreementBonus += 8;
+                totalConf += 5;
+            } else if (mtfResult.dailyBias !== 0 && primaryDir !== 0 && primaryDir !== mtfResult.dailyBias) {
+                mtfStatus = 'CONFLICTING';
+                agreementBonus -= 5;
+                totalConf *= 0.85; // Reduce confidence when MTF conflicts
+            } else {
+                mtfStatus = 'NEUTRAL';
+            }
         }
 
-        let totalConf = (lstm.confidence * 0.3) + (gbPred.confidence * 0.3) + (ensembleAdv.confidence * 0.4);
-        if (pythonAI) {
-            totalConf = (totalConf * 0.7) + (pythonAI.confidence * 0.3);
+        // Apply win-rate correction from historical data
+        if (winRateResult.sampleSize >= 5) {
+            agreementBonus += winRateResult.correctionFactor;
+            console.log(`[PredictV3] Win-rate correction: ${winRateResult.correctionFactor > 0 ? '+' : ''}${winRateResult.correctionFactor} (${(winRateResult.winRate * 100).toFixed(0)}% from ${winRateResult.sampleSize} past predictions)`);
         }
 
-        const finalConfidence = Math.min(99, totalConf + agreementBonus);
+        const finalConfidence = Math.min(92, Math.max(30, totalConf + agreementBonus));
 
-        // Signal Decision
+        // --- 8. SIGNAL DECISION ---
         let signal = 'HOLD';
         const isShortTerm = ['1h', '4h', '8h', '12h'].includes(timeframe);
-        const tradeThreshold = isShortTerm ? 0.015 : 0.03;
+        const dirThreshold = isShortTerm ? 0.02 : 0.04;
+        const confThreshold = isShortTerm ? 48 : 55;
 
-        // Trigger BUY if strong positive direction OR Triple Confluence
-        if (totalDirection > tradeThreshold || (isTripleConfluence && totalDirection > 0)) {
-            signal = 'BUY';
-        } else if (totalDirection < -tradeThreshold || (isTripleConfluence && totalDirection < 0)) {
-            signal = 'SELL';
+        // *** REGIME FILTER: Force HOLD in choppy markets unless very strong signal ***
+        if (isChoppy && confluenceLevel !== 'OCTET' && confluenceLevel !== 'SEXTET') {
+            console.log(`[PredictV3] REGIME FILTER: Market is CHOPPY (ADX=${features.adx.toFixed(1)}) — forcing HOLD to avoid bad trade`);
+            return {
+                success: true, asset, type: assetType, timeframe,
+                current_price: currentPrice, predicted_price: currentPrice,
+                prediction_change_percent: 0, signal: 'HOLD',
+                confidence: finalConfidence, stop_loss: currentPrice, take_profit: currentPrice,
+                risk_reward_ratio: 0, market_regime: regime,
+                prediction_time: new Date().toISOString(), predicted_time: new Date().toISOString(),
+                confluence: confluenceLevel, mtf_status: 'N/A',
+                regime_filter: 'BLOCKED_CHOPPY',
+                sentiment: { label: sentimentResult.label, score: sentimentResult.score, source: sentimentResult.source },
+                volume_signal: volumeAnalysis.signal,
+                sr_analysis: { signal: srAnalysis.srSignal, detail: srAnalysis.detail, support: srAnalysis.supportLevel, resistance: srAnalysis.resistanceLevel },
+                models: null, patterns: [], candlestick_patterns: [], indicators: {}, visual_patterns: []
+            };
         }
 
-        // Price Target Calculation
+        // Pro trader rule: ONLY trade when confluence supports the direction
+        if (totalDirection > dirThreshold && finalConfidence > confThreshold) {
+            const srSupportsLong = srAnalysis.srSignal === 'BOUNCE' || srAnalysis.srSignal === 'NEAR_SUPPORT' || features.sr_distance_ratio < 0.6;
+            const volSupportsLong = volumeAnalysis.signal === 'VOLUME_SPIKE_SUPPORT' || volumeAnalysis.signal === 'OBV_BULL_DIVERGENCE' || volumeAnalysis.direction > 0;
+            const sentimentOk = sentimentResult.score >= -0.2; // not strongly bearish
+            if ((srSupportsLong && sentimentOk) || confluenceLevel === 'OCTET' || confluenceLevel === 'SEXTET' || confluenceLevel === 'QUINTUPLE' || confluenceLevel === 'TRIPLE') {
+                signal = 'BUY';
+            } else if (totalDirection > dirThreshold * 2 && volSupportsLong) {
+                signal = 'BUY';
+            }
+        } else if (totalDirection < -dirThreshold && finalConfidence > confThreshold) {
+            const srSupportsShort = srAnalysis.srSignal === 'BREAKDOWN' || srAnalysis.srSignal === 'NEAR_RESISTANCE' || features.sr_distance_ratio > 0.4;
+            const volSupportsShort = volumeAnalysis.signal === 'OBV_BEAR_DIVERGENCE' || volumeAnalysis.direction < 0;
+            const sentimentOk = sentimentResult.score <= 0.2; // not strongly bullish
+            if ((srSupportsShort && sentimentOk) || confluenceLevel === 'OCTET' || confluenceLevel === 'SEXTET' || confluenceLevel === 'QUINTUPLE' || confluenceLevel === 'TRIPLE') {
+                signal = 'SELL';
+            } else if (totalDirection < -dirThreshold * 2 && volSupportsShort) {
+                signal = 'SELL';
+            }
+        }
+
+        // Pro trader rule: Don't trade against MTF daily bias with low confidence
+        if (mtfStatus === 'CONFLICTING' && finalConfidence < 65) signal = 'HOLD';
+
+        // Weak volume = don't trade (no market conviction)
+        if (volumeAnalysis.signal === 'WEAK_VOLUME' && confluenceLevel !== 'OCTET' && confluenceLevel !== 'SEXTET') signal = 'HOLD';
+
+        // --- 9. PRICE TARGET & RISK MANAGEMENT ---
         const latestVol = volatility.length > 0 ? volatility[volatility.length - 1] : 2;
-        const predictedChange = totalDirection * (finalConfidence / 100) * (latestVol / 50); // Normalized vol impact
+        const latestATR = latestATRVal;
+
+        const predictedChange = totalDirection * (finalConfidence / 100) * (latestVol / 50);
         const predictedPrice = currentPrice * (1 + predictedChange);
 
-        const latestATR = atr[atr.length - 1] || currentPrice * 0.02;
-        const stopLoss = signal === 'BUY' ? currentPrice - latestATR * 1.5 : signal === 'SELL' ? currentPrice + latestATR * 1.5 : currentPrice;
+        const rr = calculateRiskReward(currentPrice, signal, features, latestATR);
+
+        // Pro trader rule: Don't take trades with R:R below 1.5
+        if (signal !== 'HOLD' && rr.riskRewardRatio < 1.5 && confluenceLevel !== 'QUINTUPLE' && confluenceLevel !== 'SEXTET' && confluenceLevel !== 'OCTET') {
+            console.log(`[PredictV3] Skipping ${signal} — R:R too low (${rr.riskRewardRatio.toFixed(2)})`);
+            signal = 'HOLD';
+        }
+
+        // Collect all identified patterns
+        const allPatterns = [
+            ...structuralPatterns.patterns,
+            ...(cnnResult && cnnResult.pattern !== 'ERROR' ? [cnnResult.pattern] : []),
+            ...(pythonAI?.patterns || []),
+            ...features.candlestick_patterns.filter(p => p.position >= close.length - 5).map(p => p.name)
+        ];
 
         const now = new Date();
         const validTill = new Date(now.getTime() + (parseInt(timeframe) || 4) * 60 * 60 * 1000);
 
+        console.log(`[PredictV3] FINAL: ${signal} | Conf: ${finalConfidence.toFixed(1)}% | Confluence: ${confluenceLevel} | Sentiment: ${sentimentResult.label} | Volume: ${volumeAnalysis.signal} | MTF: ${mtfStatus} | Regime: ${regime} | R:R: ${rr.riskRewardRatio.toFixed(2)}`);
+
         return {
-            success: true, asset, type: assetType, timeframe, current_price: currentPrice,
-            predicted_price: predictedPrice, prediction_change_percent: ((predictedPrice - currentPrice) / currentPrice) * 100,
-            signal, confidence: finalConfidence, stop_loss: stopLoss, market_regime: regime,
+            success: true,
+            asset,
+            type: assetType,
+            timeframe,
+            current_price: currentPrice,
+            predicted_price: predictedPrice,
+            prediction_change_percent: ((predictedPrice - currentPrice) / currentPrice) * 100,
+            signal,
+            confidence: finalConfidence,
+            stop_loss: rr.stopLoss,
+            take_profit: rr.takeProfit,
+            risk_reward_ratio: rr.riskRewardRatio,
+            market_regime: regime,
             prediction_time: now.toISOString(),
             predicted_time: validTill.toISOString(),
-            confluence: isTripleConfluence ? 'TRIPLE' : 'PARTIAL',
+            confluence: confluenceLevel,
+            mtf_status: mtfStatus,
+            // Detailed model outputs
+            models: {
+                technical_ensemble: { signal: ensembleResult.signal, confidence: ensembleResult.confidence, direction: ensembleResult.direction },
+                random_forest: { prediction: rfPrediction.prediction, confidence: rfPrediction.confidence, oob_accuracy: rfModel.oobAccuracy },
+                lstm: { trend: lstmResult.trend, prediction: lstmResult.prediction, confidence: lstmResult.confidence },
+                support_resistance: { signal: srAnalysis.srSignal, direction: srAnalysis.direction, confidence: srAnalysis.confidence, detail: srAnalysis.detail, support: srAnalysis.supportLevel, resistance: srAnalysis.resistanceLevel },
+                volume_profile: { signal: volumeAnalysis.signal, direction: volumeAnalysis.direction, confidence: volumeAnalysis.confidence, detail: volumeAnalysis.detail, obv_trend: volumeAnalysis.obvTrend },
+                sentiment: { label: sentimentResult.label, score: sentimentResult.score, confidence: sentimentResult.confidence, source: sentimentResult.source, articles: sentimentResult.articleCount },
+                cnn_pattern: cnnResult ? { pattern: cnnResult.pattern, confidence: cnnResult.confidence, bullish_signal: cnnResult.bullishSignal } : null,
+                python_visual: pythonAI ? { direction: pythonAI.direction, confidence: pythonAI.confidence } : null
+            },
+            win_rate: { rate: winRateResult.winRate, samples: winRateResult.sampleSize, correction_applied: winRateResult.correctionFactor },
+            sr_analysis: { signal: srAnalysis.srSignal, detail: srAnalysis.detail, support: srAnalysis.supportLevel, resistance: srAnalysis.resistanceLevel },
+            patterns: allPatterns,
+            candlestick_patterns: features.candlestick_patterns.filter(p => p.position >= close.length - 10).map(p => ({ name: p.name, type: p.type, strength: p.strength })),
+            indicators: {
+                rsi14: features.rsi14,
+                macd_histogram: features.macd_histogram,
+                bb_position: features.bb_position,
+                adx: features.adx,
+                ichimoku_signal: features.ichimoku_signal,
+                supertrend_direction: features.supertrend_direction,
+                vwap_deviation: features.vwap_deviation,
+                volume_ratio: features.volume_ratio,
+                support: srAnalysis.supportLevel || features.nearest_support,
+                resistance: srAnalysis.resistanceLevel || features.nearest_resistance,
+                sr_signal: srAnalysis.srSignal,
+                sr_position: features.sr_distance_ratio,
+                obv_trend: volumeAnalysis.obvTrend,
+                regime
+            },
             visual_patterns: pythonAI?.patterns || []
         };
     } catch (e: any) {
-        console.error('[API] Prediction error:', e); return { success: false, error: e.message };
+        console.error('[PredictV2] Error:', e);
+        return { success: false, error: e.message };
     }
 }
+
+// ============================================
+// POST HANDLER
+// ============================================
 
 export async function POST(req: Request) {
     try {
@@ -474,7 +850,7 @@ export async function POST(req: Request) {
                     predicted_price: result.predicted_price,
                     prediction_change_percent: result.prediction_change_percent,
                     stop_loss_price: result.stop_loss,
-                    prediction_valid_till_ist: result.predicted_time, // Use new field name
+                    prediction_valid_till_ist: result.predicted_time,
                     created_at: result.prediction_time
                 };
 
@@ -488,12 +864,9 @@ export async function POST(req: Request) {
                     predictionData.trend = result.signal;
                     predictionData.confidence = Math.round(result.confidence);
                     predictionData.predicted_time_ist = result.prediction_time;
-                    predictionData.model = 'ai-advanced-hybrid-v1';
+                    predictionData.model = 'pro-engine-v2.0';
                 }
 
-                // Removed deletion query to preserve historical predictions
-
-                // Insert new prediction
                 const { error: insErr } = await supabase.from(predictionsTable).insert(predictionData);
                 if (insErr) console.error('[API] Storage failed:', insErr);
                 else console.log(`[API] Saved prediction for ${assetName} to background storage.`);
@@ -502,7 +875,6 @@ export async function POST(req: Request) {
             }
         })();
 
-        // Return immediately to the UI
         return NextResponse.json({ success: true, prediction: result });
     } catch (e: any) {
         console.error('[API] POST Error:', e);

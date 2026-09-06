@@ -1,0 +1,13 @@
+{
+    "executionEnvironments": [
+        {
+            "root": "ai_engine",
+            "extraPaths": [
+                "C:\\Users\\sonka\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages"
+            ]
+        }
+    ],
+    "typeCheckingMode": "basic",
+    "reportMissingImports": true,
+    "pythonVersion": "3.13"
+}

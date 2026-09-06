@@ -1,0 +1,95 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "openrouter": {
+      "whitelist": [
+        "minimax/minimax-m3:free",
+        "thinkingmachines/inkling:free",
+        "cohere/north-mini-code:free",
+        "dots-studio/dots-3-note-preview:free",
+        "google/gemma-4-26b-a4b-it:free",
+        "google/gemma-4-31b-it:free",
+        "google/lyria-3-clip-preview",
+        "google/lyria-3-pro-preview",
+        "inclusionai/ling-3.0-flash-fin:free",
+        "inclusionai/ling-3.0-flash-sante:free",
+        "liquid/lfm-2.5-2.6b:free",
+        "minimax/minimax-m2.7:free",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "nvidia/nemotron-3.5-content-safety:free",
+        "nvidia/nemotron-3.5-lightning:free",
+        "poolside/laguna-s-2.1:free",
+        "poolside/laguna-xs-2.1:free",
+        "thinkingmachines/inkling-small:free",
+        "z-ai/glm-5.2:free"
+      ],
+      "models": {
+        "minimax/minimax-m3:free": {
+          "name": "01 — MiniMax M3 (free)"
+        },
+        "thinkingmachines/inkling:free": {
+          "name": "02 — Thinking Machines Inkling (free)"
+        },
+        "cohere/north-mini-code:free": {
+          "name": "03 — Cohere North Mini Code (free)"
+        },
+        "dots-studio/dots-3-note-preview:free": {
+          "name": "04 — Dots3-Note Preview (free)"
+        },
+        "google/gemma-4-26b-a4b-it:free": {
+          "name": "05 — Gemma 4 26B A4B (free)"
+        },
+        "google/gemma-4-31b-it:free": {
+          "name": "06 — Gemma 4 31B (free)"
+        },
+        "google/lyria-3-clip-preview": {
+          "name": "07 — Lyria 3 Clip Preview (free)"
+        },
+        "google/lyria-3-pro-preview": {
+          "name": "08 — Lyria 3 Pro Preview (free)"
+        },
+        "inclusionai/ling-3.0-flash-fin:free": {
+          "name": "09 — Ling 3.0 Flash Fin (free)"
+        },
+        "inclusionai/ling-3.0-flash-sante:free": {
+          "name": "10 — Ling 3.0 Flash Sante (free)"
+        },
+        "liquid/lfm-2.5-2.6b:free": {
+          "name": "11 — Liquid LFM2.5 2.6B (free)"
+        },
+        "minimax/minimax-m2.7:free": {
+          "name": "12 — MiniMax M2.7 (free)"
+        },
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
+          "name": "13 — NVIDIA Nemotron 3 Nano Omni (free)"
+        },
+        "nvidia/nemotron-3-super-120b-a12b:free": {
+          "name": "14 — NVIDIA Nemotron 3 Super (free)"
+        },
+        "nvidia/nemotron-3-ultra-550b-a55b:free": {
+          "name": "15 — NVIDIA Nemotron 3 Ultra (free)"
+        },
+        "nvidia/nemotron-3.5-content-safety:free": {
+          "name": "16 — NVIDIA Nemotron 3.5 Content Safety (free)"
+        },
+        "nvidia/nemotron-3.5-lightning:free": {
+          "name": "17 — NVIDIA Nemotron 3.5 Lightning (free)"
+        },
+        "poolside/laguna-s-2.1:free": {
+          "name": "18 — Poolside Laguna S 2.1 (free)"
+        },
+        "poolside/laguna-xs-2.1:free": {
+          "name": "19 — Poolside Laguna XS 2.1 (free)"
+        },
+        "thinkingmachines/inkling-small:free": {
+          "name": "20 — Thinking Machines Inkling Small (free)"
+        },
+        "z-ai/glm-5.2:free": {
+          "name": "21 — Z.ai GLM 5.2 (free)"
+        }
+      }
+    }
+  }
+}

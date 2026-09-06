@@ -1,221 +1,184 @@
-"use client";
+﻿"use client";
 
-import { motion, useScroll, useTransform, useSpring } from "framer-motion";
-import { Zap, Shield, TrendingUp, Bot } from "lucide-react";
-import { useRef, useState, useEffect, useMemo } from "react";
-import { Starfield } from "@/components/ui/sparkles";
-import { Spotlight } from "@/components/aceternity/Spotlight";
+import { motion } from "framer-motion";
+import { Zap, ArrowRight, Activity, Terminal, TrendingUp, ShieldCheck } from "lucide-react";
 import { SolarisIcon } from "@/components/ui/SolarisIcon";
 import Link from "next/link";
-import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 
-// Deterministic values for floating icons to avoid hydration mismatch
-const floatingIconConfigs = [
-    { left: 25, top: 35, size: 32, duration: 6, delay: 0 },
-    { left: 45, top: 28, size: 38, duration: 7, delay: 0.5 },
-    { left: 62, top: 45, size: 28, duration: 5, delay: 1 },
-    { left: 38, top: 68, size: 42, duration: 8, delay: 1.5 },
+const marqueeTickers = [
+    { symbol: "NIFTY 50", price: "24,850.15", change: "+0.82%", isUp: true, market: "NSE" },
+    { symbol: "SENSEX", price: "81,320.40", change: "+0.71%", isUp: true, market: "BSE" },
+    { symbol: "RELIANCE", price: "₹2,980.50", change: "+1.45%", isUp: true, market: "NSE" },
+    { symbol: "HDFCBANK", price: "₹1,642.10", change: "-0.38%", isUp: false, market: "NSE" },
+    { symbol: "BTC/USDT", price: "$64,230.50", change: "+3.42%", isUp: true, market: "CRYPTO" },
+    { symbol: "ETH/USDT", price: "$3,480.20", change: "+4.10%", isUp: true, market: "CRYPTO" },
+    { symbol: "SOL/USDT", price: "$145.80", change: "-1.20%", isUp: false, market: "CRYPTO" },
+    { symbol: "TCS", price: "₹4,150.00", change: "+0.92%", isUp: true, market: "NSE" },
 ];
 
 export function HeroSection() {
-    const ref = useRef(null);
-    const { scrollYProgress } = useScroll({
-        target: ref,
-        offset: ["start start", "end start"]
-    });
-
-    const smoothScroll = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
-    const y = useTransform(smoothScroll, [0, 1], ["0%", "50%"]);
-    const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
-
-    // Mouse position for spotlight effect
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            setMousePosition({ x: e.clientX, y: e.clientY });
-        };
-
-        window.addEventListener("mousemove", handleMouseMove);
-        return () => window.removeEventListener("mousemove", handleMouseMove);
-    }, []);
-
-    // Icons array for mapping
-    const icons = useMemo(() => [Zap, Shield, TrendingUp, Bot], []);
-
     return (
-        <div ref={ref} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-            {/* Starfield background */}
-            <Starfield className="opacity-50" starCount={100} />
+        <div className="relative pt-28 pb-12 bg-background border-b border-border/60 overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_60%_50%_at_20%_20%,rgba(245,158,11,0.06),transparent)]" />
 
-            {/* Dynamic spotlight that follows mouse */}
-            <motion.div
-                className="fixed pointer-events-none z-0"
-                style={{
-                    left: mousePosition.x,
-                    top: mousePosition.y,
-                }}
-                animate={{
-                    x: -8,
-                    y: -8,
-                }}
-                transition={{ type: "tween", duration: 0.1 }}
-            >
-                <div
-                    className="w-20 h-20 rounded-full bg-primary/30 blur-xl"
-                    style={{
-                        transform: "translate(-50%, -50%)",
-                    }}
-                />
-            </motion.div>
+            <div className="container mx-auto px-4 sm:px-6 relative z-10 max-w-7xl">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                    {/* Left Column: Core Value Proposition (7 cols) */}
+                    <div className="lg:col-span-7 space-y-6 text-left">
+                        <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-card border border-border text-xs font-mono">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-muted-foreground uppercase tracking-wider font-semibold">Terminal Engine v3.2</span>
+                            <span className="text-border">|</span>
+                            <span className="text-primary font-bold">NSE / BSE & Crypto Live</span>
+                        </div>
 
-            {/* Animated background orbs */}
-            <div className="absolute inset-0 z-0 overflow-hidden">
-                <motion.div
-                    className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[128px]"
-                    animate={{
-                        scale: [1, 1.2, 1],
-                        opacity: [0.2, 0.4, 0.2],
-                    }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                />
-                <motion.div
-                    className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-secondary/20 rounded-full blur-[128px]"
-                    animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.2, 0.35, 0.2],
-                    }}
-                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                />
+                        <h1 className="text-4xl sm:text-6xl xl:text-7xl font-bold tracking-tight text-foreground font-display leading-[1.08]">
+                            Predictive intelligence for <span className="text-primary">disciplined traders</span>.
+                        </h1>
+
+                        <p className="text-base sm:text-lg text-muted-foreground max-w-xl font-normal leading-relaxed">
+                            Institutional-grade ML models, 8-factor signal confluence, and automated risk parameters across 500+ Indian equities and 1,000+ crypto pairs.
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-4 pt-2">
+                            <Link href="/login">
+                                <button className="px-7 py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm tracking-wide transition-all hover:opacity-90 active:scale-[0.98] flex items-center gap-2 cursor-pointer shadow-lg shadow-primary/20">
+                                    <Zap className="w-4 h-4 fill-current" />
+                                    <span>Access Trading Terminal</span>
+                                    <ArrowRight className="w-4 h-4" />
+                                </button>
+                            </Link>
+
+                            <a href="#features-preview">
+                                <button className="px-6 py-3.5 rounded-xl bg-card hover:bg-muted/50 border border-border text-foreground font-semibold text-sm transition-colors flex items-center gap-2 cursor-pointer">
+                                    <Activity className="w-4 h-4 text-primary" />
+                                    <span>Explore Signal Engine</span>
+                                </button>
+                            </a>
+                        </div>
+
+                        {/* Quantitative Highlights */}
+                        <div className="grid grid-cols-3 gap-6 pt-6 border-t border-border/80 max-w-lg font-mono">
+                            <div>
+                                <div className="text-2xl font-bold text-foreground tabular-nums">94.2%</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">Model Confluence</div>
+                            </div>
+                            <div>
+                                <div className="text-2xl font-bold text-foreground tabular-nums">&lt; 45ms</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">Execution Telemetry</div>
+                            </div>
+                            <div>
+                                <div className="text-2xl font-bold text-foreground tabular-nums">1,500+</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">Tracked Instruments</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Live Terminal Visual Interface (5 cols) */}
+                    <div className="lg:col-span-5">
+                        <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-2xl space-y-4 backdrop-blur-md">
+                            {/* Window Topbar */}
+                            <div className="flex items-center justify-between pb-3 border-b border-border text-xs font-mono text-muted-foreground">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
+                                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                                    <span className="ml-2 font-semibold text-foreground">SHURSUNT-CLI v3.2</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-emerald-400">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    <span>CONNECTED</span>
+                                </div>
+                            </div>
+
+                            {/* Simulated Feed Rows */}
+                            <div className="space-y-2.5 font-mono text-xs">
+                                <div className="p-3 rounded-lg bg-background border border-border flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-1.5 rounded bg-primary/10 text-primary">
+                                            <Terminal className="w-3.5 h-3.5" />
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-foreground">NIFTY 50 (OCT FUT)</span>
+                                            <span className="text-[10px] text-muted-foreground block">Breakout Alert • Confluence 89%</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-emerald-400 font-bold tabular-nums">24,912.40</span>
+                                        <span className="text-[10px] text-emerald-500 block">+0.88%</span>
+                                    </div>
+                                </div>
+
+                                <div className="p-3 rounded-lg bg-background border border-border flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-1.5 rounded bg-indigo-500/10 text-indigo-400">
+                                            <TrendingUp className="w-3.5 h-3.5" />
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-foreground">BTC/USDT (PERP)</span>
+                                            <span className="text-[10px] text-muted-foreground block">Mean Reversion • Multi-TF Align</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-emerald-400 font-bold tabular-nums">$64,320.00</span>
+                                        <span className="text-[10px] text-emerald-500 block">+3.42%</span>
+                                    </div>
+                                </div>
+
+                                <div className="p-3 rounded-lg bg-background border border-border flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-1.5 rounded bg-rose-500/10 text-rose-400">
+                                            <ShieldCheck className="w-3.5 h-3.5" />
+                                        </div>
+                                        <div>
+                                            <span className="font-bold text-foreground">RELIANCE (EQ)</span>
+                                            <span className="text-[10px] text-muted-foreground block">Dynamic Stop Loss • Trailing ATR</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-foreground font-bold tabular-nums">₹2,980.50</span>
+                                        <span className="text-[10px] text-muted-foreground block">SL: ₹2,942.00</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Execution Log */}
+                            <div className="p-3 rounded-lg bg-background/60 border border-border/80 font-mono text-[11px] text-muted-foreground space-y-1">
+                                <div className="flex justify-between">
+                                    <span>[09:15:02] Engine initialized. Ingesting NSE ticks.</span>
+                                    <span className="text-emerald-400">OK</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>[09:15:04] Orderbook depth loaded for 500 equities.</span>
+                                    <span className="text-emerald-400">OK</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>[09:15:07] Neural signal generated for 14 instruments.</span>
+                                    <span className="text-primary font-bold">READY</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <motion.div
-                style={{ y, opacity }}
-                className="relative z-10 container px-4 mx-auto text-center flex flex-col items-center justify-center h-full"
-            >
-                {/* Spotlight effect */}
-                <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" fill="white" />
-
-
-
-
-
-                {/* New Hero Content */}
-                <div className="flex flex-col items-center justify-center z-50 mt-10">
-                    {/* Logo Top Center */}
-                    <div className="flex items-center gap-5 mb-12">
-                        <SolarisIcon className="w-20 h-20 text-primary" />
-                        <span className="text-4xl font-bold tracking-widest text-foreground">SHURSUNT</span>
-                    </div>
-                    <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-foreground px-4 tracking-tight leading-tight mb-2">
-                        AI Crypto Analytics &
-                    </h1>
-                    <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-foreground px-4 tracking-tight leading-tight mb-8">
-                        Trading Signals. <span className="text-blue-500 animate-pulse">|</span>
-                    </h1>
-
-                    <p className="text-lg sm:text-xl md:text-2xl text-zinc-400 max-w-3xl mx-auto leading-relaxed mt-4 font-medium">
-                        Real-time predictions, advanced charting, and AI-driven
-                    </p>
-                    <p className="text-lg sm:text-xl md:text-2xl text-zinc-400 max-w-3xl mx-auto leading-relaxed mb-8 font-medium">
-                        insights for the modern trader.
-                    </p>
-
-                    <Link href="/login" className="text-blue-500 font-bold text-lg mb-8 hover:text-blue-400 transition-colors">
-                        Experience the future of trading.
-                    </Link>
-
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5, duration: 0.6 }}
-                        className="relative z-50"
-                    >
-                        <Link href="/login">
-                            <button className="bg-primary text-primary-foreground hover:bg-primary/90 border border-primary/20 flex items-center gap-3 px-8 py-3 rounded-full text-sm font-bold shadow-[0_0_20px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] hover:scale-105 transition-all duration-300">
-                                <Zap className="w-4 h-4 text-primary-foreground fill-current" />
-                                <span>Start Trading</span>
-                            </button>
-                        </Link>
-                    </motion.div>
-                </div>
-
-
-                {/* Floating icons */}
-                <motion.div
-                    className="absolute inset-0 pointer-events-none overflow-hidden -z-10"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1 }}
-                >
-                    {icons.map((Icon, i) => (
-                        <motion.div
-                            key={i}
-                            className="absolute opacity-20"
-                            style={{
-                                left: `${floatingIconConfigs[i].left}%`,
-                                top: `${floatingIconConfigs[i].top}%`,
-                            }}
-                            animate={{
-                                y: [0, -30, 0],
-                                rotate: [0, 360],
-                                scale: [1, 1.3, 1],
-                            }}
-                            transition={{
-                                duration: floatingIconConfigs[i].duration,
-                                repeat: Infinity,
-                                delay: floatingIconConfigs[i].delay,
-                            }}
-                        >
-                            <Icon
-                                size={floatingIconConfigs[i].size}
-                                className="text-primary filter drop-shadow-lg"
-                            />
-                        </motion.div>
+            {/* Marquee Ticker Bar */}
+            <div className="mt-12 border-t border-b border-border bg-card/40 py-2.5 overflow-hidden group">
+                <div className="flex w-max animate-marquee gap-8 group-hover:[animation-play-state:paused]">
+                    {[...marqueeTickers, ...marqueeTickers].map((ticker, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-xs font-mono">
+                            <span className="font-bold text-foreground">{ticker.symbol}</span>
+                            <span className="text-muted-foreground text-[10px] bg-muted px-1.5 py-0.2 rounded border border-border uppercase">
+                                {ticker.market}
+                            </span>
+                            <span className="text-foreground font-medium tabular-nums">{ticker.price}</span>
+                            <span className={`tabular-nums font-semibold ${ticker.isUp ? "text-emerald-400" : "text-rose-400"}`}>
+                                {ticker.change}
+                            </span>
+                        </div>
                     ))}
-                </motion.div>
-            </motion.div>
-
-
-
-            {/* Aurora background effect */}
-            <div className="absolute inset-0 z-[-1] overflow-hidden pointer-events-none">
-                <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] animate-[spin_20s_linear_infinite]">
-                    <div className="absolute top-1/4 left-1/4 w-[50%] h-[50%] bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 blur-[100px] rounded-full" />
-                    <div className="absolute bottom-1/4 right-1/4 w-[40%] h-[40%] bg-gradient-to-r from-secondary/10 via-primary/10 to-secondary/10 blur-[80px] rounded-full" />
                 </div>
             </div>
         </div>
-    );
-}
-
-// Shine text component with better visibility
-function ShineText({ text }: { text: string }) {
-    return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="relative flex flex-col items-center justify-center z-50 text-center"
-        >
-            <motion.h1
-                className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-[linear-gradient(110deg,#b3b3b3,45%,#ffffff,55%,#b3b3b3)] dark:bg-[linear-gradient(110deg,#b3b3b3,45%,#ffffff,55%,#b3b3b3)] bg-[length:250%_100%] pb-2 text-zinc-900 dark:text-transparent"
-                style={{
-                    backgroundImage: 'linear-gradient(110deg, #18181b 45%, #52525b 55%, #18181b)' // Dark gradient for light mode fallback/override
-                }}
-                animate={{
-                    backgroundPosition: ["-100% 0", "200% 0"],
-                }}
-                transition={{
-                    repeat: Infinity,
-                    duration: 4,
-                    ease: "linear",
-                }}
-            >
-                {text}
-            </motion.h1>
-            {/* Subtle Glow Reflection */}
-            <div className="absolute inset-0 bg-white/20 blur-[100px] opacity-0 animate-pulse pointer-events-none" />
-        </motion.div>
     );
 }

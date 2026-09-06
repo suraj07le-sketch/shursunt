@@ -1,66 +1,118 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { TrendingUp, TrendingDown, Clock, ShieldCheck } from "lucide-react";
+
+interface IndexItem {
+    name: string;
+    exchange: string;
+    value: number;
+    change: number;
+    percent: number;
+    status: "UP" | "DOWN";
+}
+
+const defaultIndices: IndexItem[] = [
+    { name: "NIFTY 50", exchange: "NSE", value: 24850.15, change: 182.40, percent: 0.74, status: "UP" },
+    { name: "SENSEX", exchange: "BSE", value: 81320.40, change: 540.20, percent: 0.67, status: "UP" },
+    { name: "BANK NIFTY", exchange: "NSE", value: 51240.80, change: -110.30, percent: -0.21, status: "DOWN" },
+];
 
 export function MarketIndices() {
-    const [indices, setIndices] = useState([
-        { name: "Nifty 50", value: 24323.85, change: 156.30, percent: 0.65, status: "UP" },
-        { name: "Sensex", value: 79724.12, change: -124.50, percent: -0.16, status: "DOWN" }
-    ]);
+    // Determine Indian Market Status (09:15 - 15:30 IST, Mon-Fri)
+    const marketStatus = useMemo(() => {
+        const now = new Date();
+        const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+        const istMinutes = (utcMinutes + 330) % 1440; // UTC+5:30
+        const day = now.getUTCDay();
 
-    useEffect(() => {
-        // In a real app, we'd fetch from stock.indianapi.in
-        // Simulating live ticks
-        const interval = setInterval(() => {
-            setIndices(prev => prev.map(idx => {
-                const tick = (Math.random() - 0.5) * 5;
-                const newValue = idx.value + tick;
-                const newChange = idx.change + tick;
-                return {
-                    ...idx,
-                    value: Number(newValue.toFixed(2)),
-                    change: Number(newChange.toFixed(2)),
-                    percent: Number(((newChange / newValue) * 100).toFixed(2)),
-                    status: newChange >= 0 ? "UP" : "DOWN"
-                };
-            }));
-        }, 3000);
+        const isWeekday = day >= 1 && day <= 5;
+        const isMarketOpen = isWeekday && istMinutes >= 9 * 60 + 15 && istMinutes <= 15 * 60 + 30;
 
-        return () => clearInterval(interval);
+        return {
+            isOpen: isMarketOpen,
+            label: isMarketOpen ? "SESSION ACTIVE" : "EOD SETTLEMENT",
+        };
     }, []);
 
-    return (
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-            {indices.map((idx) => (
-                <motion.div
-                    key={idx.name}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="w-full md:w-auto md:min-w-[240px] flex-shrink-0 bg-card/40 dark:bg-secondary/20 backdrop-blur-xl border border-border/50 dark:border-white/5 rounded-3xl p-5 shadow-xl"
-                >
-                    <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                            <div className={`p-1.5 rounded-lg ${idx.status === 'UP' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                                <Activity size={14} className={idx.status === 'UP' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} />
-                            </div>
-                            <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">{idx.name}</span>
-                        </div>
-                        <div className={`text-[10px] font-black px-2 py-0.5 rounded-md ${idx.status === 'UP' ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-500/20 text-red-700 dark:text-red-400'}`}>
-                            {idx.status === 'UP' ? '+' : ''}{idx.percent}%
-                        </div>
-                    </div>
+    const { data: indices = defaultIndices } = useQuery({
+        queryKey: ['market-indices-summary'],
+        queryFn: async () => {
+            try {
+                const targetUrl = "https://stock.indianapi.in/market_indices";
+                const res = await fetch(`/api/proxy?url=${encodeURIComponent(targetUrl)}`);
+                if (!res.ok) return defaultIndices;
+                const json = await res.json();
+                if (Array.isArray(json) && json.length > 0) {
+                    return json.slice(0, 3).map((item: any) => ({
+                        name: item.name || item.index || "INDEX",
+                        exchange: item.exchange || "NSE",
+                        value: Number(item.price || item.current_price || item.last_price || 0),
+                        change: Number(item.change || item.point_change || 0),
+                        percent: Number(item.percent_change || item.pChange || 0),
+                        status: (item.change >= 0 ? "UP" : "DOWN") as "UP" | "DOWN",
+                    }));
+                }
+                return defaultIndices;
+            } catch {
+                return defaultIndices;
+            }
+        },
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+    });
 
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-black text-foreground">{idx.value.toLocaleString()}</span>
-                        <div className={`flex items-center gap-1 text-xs font-bold ${idx.status === 'UP' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {idx.status === 'UP' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                            {idx.change.toFixed(2)}
-                        </div>
+    return (
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-card">
+            <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-muted text-foreground border border-border">
+                    <Clock className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold text-foreground">DOMESTIC INDICES</span>
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono font-medium ${
+                            marketStatus.isOpen
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                : "bg-muted text-muted-foreground border border-border"
+                        }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${marketStatus.isOpen ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground"}`} />
+                            {marketStatus.label}
+                        </span>
                     </div>
-                </motion.div>
-            ))}
+                    <p className="text-[11px] text-muted-foreground font-mono">NSE / BSE Cash Market & Segment Feeds</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {indices.map((idx) => {
+                    const isUp = idx.status === "UP";
+                    return (
+                        <div
+                            key={idx.name}
+                            className="p-3 rounded-lg border border-border bg-background flex flex-col justify-between min-w-44"
+                        >
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-mono font-bold text-foreground tracking-tight">{idx.name}</span>
+                                <span className="text-[10px] font-mono text-muted-foreground uppercase">{idx.exchange}</span>
+                            </div>
+                            <div className="mt-2 flex items-baseline justify-between gap-2">
+                                <span className="text-sm font-bold font-mono text-foreground tabular-nums">
+                                    ₹{idx.value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                <span className={`text-xs font-mono font-semibold flex items-center gap-0.5 tabular-nums ${
+                                    isUp ? "text-emerald-400" : "text-rose-400"
+                                }`}>
+                                    {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                    {isUp ? "+" : ""}{idx.percent.toFixed(2)}%
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 }
+

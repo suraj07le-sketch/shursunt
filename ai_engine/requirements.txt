@@ -10,3 +10,5 @@ ta>=0.10.0
 python-dotenv>=1.0.0
 joblib>=1.2.0
 opencv-python>=4.7.0
+matplotlib>=3.6.0
+mplfinance>=0.12.0

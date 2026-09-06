@@ -1,10 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { useTheme } from "next-themes";
+import { motion } from "framer-motion";
 import {
     Eye,
     EyeOff,
@@ -12,26 +11,23 @@ import {
     Lock,
     User,
     ArrowRight,
-    Sparkles,
-    Zap,
-    CheckCircle,
     AlertCircle,
     Loader2,
-    MailCheck
+    ArrowLeft,
+    CheckCircle2,
+    Shield
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useMounted } from "../../hooks/useMounted";
 import { useTranslations } from "next-intl";
 
-// Password strength configuration (using keys)
 const passwordRequirements = [
-    { regex: /.{8,}/, label: "reqLength" },
-    { regex: /[A-Z]/, label: "reqUpper" },
-    { regex: /[a-z]/, label: "reqLower" },
-    { regex: /[0-9]/, label: "reqNumber" },
-    { regex: /[^A-Za-z0-9]/, label: "reqSpecial" },
+    { regex: /.{8,}/, label: "At least 8 characters" },
+    { regex: /[A-Z]/, label: "One uppercase letter" },
+    { regex: /[a-z]/, label: "One lowercase letter" },
+    { regex: /[0-9]/, label: "One number" },
+    { regex: /[^A-Za-z0-9]/, label: "One special character" },
 ];
 
 export default function AuthForm({ mode = "login" }: { mode?: "login" | "signup" }) {
@@ -42,133 +38,50 @@ export default function AuthForm({ mode = "login" }: { mode?: "login" | "signup"
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [emailSent, setEmailSent] = useState(false);
-    const [focusedField, setFocusedField] = useState<string | null>(null);
+
+    // OTP verification state: 'form' | 'otp'
+    const [step, setStep] = useState<"form" | "otp">("form");
+    const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
+    const [resendCooldown, setResendCooldown] = useState<number>(0);
+    const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
     const [passwordStrength, setPasswordStrength] = useState(0);
     const router = useRouter();
-    const { resolvedTheme } = useTheme();
-    const mounted = useMounted();
-    const successRef = useRef<HTMLDivElement>(null);
-
-    // Accessibility: Focus success message when it appears
-    useEffect(() => {
-        if (emailSent && successRef.current) {
-            successRef.current.focus();
-        }
-    }, [emailSent]);
-
     const isLogin = mode === "login";
-    const isLight = resolvedTheme === "light";
 
-    // Theme-based colors
-    const getThemeColors = () => {
-        switch (resolvedTheme) {
-            case "light":
-                return {
-                    accent: "text-blue-600",
-                    accentBg: "bg-blue-500",
-                    accentBorder: "border-blue-500",
-                    gradientFrom: "from-blue-500",
-                    gradientTo: "to-cyan-500",
-                    glow: "bg-blue-500/10",
-                    cardBg: "bg-white",
-                    cardBorder: "border-slate-200",
-                    inputBg: "bg-slate-50",
-                    inputBorder: "border-slate-200",
-                    text: "text-slate-800",
-                    textMuted: "text-slate-500",
-                    textMutedLight: "text-slate-400",
-                    icon: "text-slate-400",
-                    iconFocus: "text-blue-500",
-                    buttonText: "text-white",
-                    success: "text-green-600",
-                    successBg: "bg-green-500",
-                    socialBg: "bg-slate-50",
-                    socialBorder: "border-slate-200",
-                    socialHover: "hover:bg-slate-100",
-                };
-            case "neon":
-                return {
-                    accent: "text-pink-500",
-                    accentBg: "bg-pink-500",
-                    accentBorder: "border-pink-500",
-                    gradientFrom: "from-pink-500",
-                    gradientTo: "to-purple-500",
-                    glow: "bg-pink-500/20",
-                    cardBg: "bg-pink-950/50",
-                    cardBorder: "border-pink-500/30",
-                    inputBg: "bg-black/40",
-                    inputBorder: "border-pink-500/30",
-                    text: "text-white",
-                    textMuted: "text-pink-300/60",
-                    textMutedLight: "text-pink-400/40",
-                    icon: "text-pink-400/50",
-                    iconFocus: "text-pink-400",
-                    buttonText: "text-white",
-                    success: "text-green-400",
-                    successBg: "bg-green-500",
-                    socialBg: "bg-pink-950/50",
-                    socialBorder: "border-pink-500/30",
-                    socialHover: "hover:bg-pink-900/50",
-                };
-            case "cyber":
-                return {
-                    accent: "text-cyan-400",
-                    accentBg: "bg-cyan-400",
-                    accentBorder: "border-cyan-400",
-                    gradientFrom: "from-cyan-500",
-                    gradientTo: "to-blue-500",
-                    glow: "bg-cyan-400/20",
-                    cardBg: "bg-slate-900/60",
-                    cardBorder: "border-cyan-500/30",
-                    inputBg: "bg-slate-950/50",
-                    inputBorder: "border-cyan-500/30",
-                    text: "text-cyan-50",
-                    textMuted: "text-cyan-300/50",
-                    textMutedLight: "text-cyan-400/40",
-                    icon: "text-cyan-400/50",
-                    iconFocus: "text-cyan-400",
-                    buttonText: "text-black",
-                    success: "text-green-400",
-                    successBg: "bg-green-500",
-                    socialBg: "bg-slate-900/60",
-                    socialBorder: "border-cyan-500/30",
-                    socialHover: "hover:bg-slate-800/60",
-                };
-            default:
-                return {
-                    accent: "text-amber-500",
-                    accentBg: "bg-amber-500",
-                    accentBorder: "border-amber-500",
-                    gradientFrom: "from-amber-500",
-                    gradientTo: "to-orange-600",
-                    glow: "bg-amber-500/20",
-                    cardBg: "bg-slate-900/60",
-                    cardBorder: "border-amber-500/30",
-                    inputBg: "bg-white/5",
-                    inputBorder: "border-white/10",
-                    text: "text-amber-50",
-                    textMuted: "text-amber-300/50",
-                    textMutedLight: "text-amber-400/40",
-                    icon: "text-amber-400/50",
-                    iconFocus: "text-amber-400",
-                    buttonText: "text-black",
-                    success: "text-green-400",
-                    successBg: "bg-green-500",
-                    socialBg: "bg-white/5",
-                    socialBorder: "border-white/10",
-                    socialHover: "hover:bg-white/10",
-                };
+    // Requirement: Always check getSession() BEFORE getUser()
+    useEffect(() => {
+        const checkSession = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        router.push("/dashboard");
+                        return;
+                    }
+                }
+            } catch {
+                // Ignore session missing errors
+            }
+            setStep("form");
+            setOtpDigits(["", "", "", "", "", ""]);
+        };
+        checkSession();
+    }, [router]);
+
+    // Resend cooldown countdown
+    useEffect(() => {
+        if (resendCooldown > 0) {
+            const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+            return () => clearTimeout(timer);
         }
-    };
-
-    const colors = mounted ? getThemeColors() : getThemeColors();
+    }, [resendCooldown]);
 
     useEffect(() => {
         router.prefetch("/dashboard");
     }, [router]);
 
-    // Calculate password strength
     const calculatePasswordStrength = useCallback((pwd: string) => {
         let strength = 0;
         passwordRequirements.forEach((req) => {
@@ -195,437 +108,358 @@ export default function AuthForm({ mode = "login" }: { mode?: "login" | "signup"
                     password,
                 });
                 if (error) throw error;
-                toast.success(t('welcomeBack')); // Translated
-                // Small delay to allow session to be set
-                await new Promise(resolve => setTimeout(resolve, 100));
-                window.location.href = "/dashboard";
+                toast.success("Welcome back to ShursunT!");
+                router.push("/dashboard");
             } else {
-                // Enforce Password Strength
                 if (passwordStrength < passwordRequirements.length) {
-                    toast.error("Please ensure your password meets all requirements"); // Consider translating later
+                    toast.error("Please satisfy all password security requirements.");
                     setLoading(false);
                     return;
                 }
 
-                const origin = window.location.origin;
-                const { data, error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        emailRedirectTo: `${origin}/dashboard`,
-                        data: { username },
-                    },
+                const res = await fetch("/api/auth/send-otp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, fullName: username }),
                 });
-                if (error) throw error;
-                if (data.session) {
-                    toast.success(t('accountCreated')); // Translated
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    window.location.href = "/dashboard";
-                } else {
-                    setEmailSent(true);
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || "Failed to send verification code.");
                 }
+
+                toast.success("Verification code sent to your email.");
+                setStep("otp");
+                setResendCooldown(60);
+                setTimeout(() => {
+                    otpInputRefs.current[0]?.focus();
+                }, 100);
             }
         } catch (err: any) {
-            if (err.message.includes("already registered") || err.message.includes("already exists")) {
-                toast.error(t('userExists')); // Translated
-            } else {
-                toast.error(err.message);
-            }
-            setError(err.message);
+            const msg = err.message || "An error occurred during authentication.";
+            toast.error(msg);
+            setError(msg);
+        } finally {
             setLoading(false);
         }
     };
 
+    const handleOtpChange = (index: number, value: string) => {
+        if (!/^\d*$/.test(value)) return;
 
-    if (emailSent) {
+        const newDigits = [...otpDigits];
+        if (value.length > 1) {
+            const pasted = value.slice(0, 6).split("");
+            for (let i = 0; i < 6; i++) {
+                newDigits[i] = pasted[i] || "";
+            }
+            setOtpDigits(newDigits);
+            otpInputRefs.current[Math.min(pasted.length, 5)]?.focus();
+        } else {
+            newDigits[index] = value;
+            setOtpDigits(newDigits);
+            if (value && index < 5) {
+                otpInputRefs.current[index + 1]?.focus();
+            }
+        }
+    };
+
+    const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+            otpInputRefs.current[index - 1]?.focus();
+        }
+    };
+
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const code = otpDigits.join("");
+        if (code.length !== 6) {
+            toast.error("Please enter the complete 6-digit verification code.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const res = await fetch("/api/auth/verify-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email,
+                    code,
+                    password,
+                    fullName: username,
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Verification failed.");
+            }
+
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (signInError) throw signInError;
+
+            toast.success("Account verified & authorized.");
+            router.push("/dashboard");
+        } catch (err: any) {
+            toast.error(err.message || "Failed to verify OTP.");
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResendCode = async () => {
+        if (resendCooldown > 0) return;
+        setLoading(true);
+        try {
+            const res = await fetch("/api/auth/send-otp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, fullName: username }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            toast.success("A new verification code has been dispatched.");
+            setResendCooldown(60);
+            setOtpDigits(["", "", "", "", "", ""]);
+            otpInputRefs.current[0]?.focus();
+        } catch (err: any) {
+            toast.error(err.message || "Failed to resend OTP.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Screen: OTP Verification
+    if (step === "otp") {
         return (
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className={cn(
-                    "relative p-8 text-center space-y-6 rounded-2xl backdrop-blur-xl border shadow-2xl overflow-hidden focus:outline-none",
-                    colors.cardBg,
-                    colors.cardBorder
-                )}
-                ref={successRef}
-                tabIndex={-1}
-                role="alert"
-                aria-live="polite"
-            >
-                {/* Animated gradient border */}
-                <div className={cn(
-                    "absolute inset-0 rounded-2xl p-[1px]",
-                    `bg-gradient-to-r ${colors.gradientFrom} via-white/50 to-${colors.gradientTo.replace("from-", "")}`
-                )} />
-                <div className={cn("absolute inset-[1px] rounded-2xl", colors.cardBg)} />
+            <div className="w-full space-y-6">
+                <div className="space-y-2">
+                    <button
+                        type="button"
+                        onClick={() => setStep("form")}
+                        className="inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>RETURN TO FORM</span>
+                    </button>
 
-                <div className="relative">
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                        className={cn(
-                            "mx-auto w-20 h-20 rounded-full flex items-center justify-center border mb-6",
-                            colors.glow,
-                            colors.accentBorder
-                        )}
-                    >
-                        <motion.svg
-                            initial={{ pathLength: 0 }}
-                            animate={{ pathLength: 1 }}
-                            transition={{ duration: 0.5, delay: 0.4 }}
-                            className={cn("w-10 h-10", colors.success)}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <motion.path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                            />
-                        </motion.svg>
-                    </motion.div>
-
-                    <motion.h2
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className={cn("text-3xl font-bold mb-2", colors.text)}
-                    >
-                        {t('checkEmail')}
-                    </motion.h2>
-                    <motion.p
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                        className={colors.textMuted}
-                    >
-                        {t('sentLink')}
-                        <br />
-                        <span className={cn("font-medium", colors.text)}>{email}</span>
-                    </motion.p>
+                    <h2 className="text-xl sm:text-2xl font-bold font-display tracking-tight text-foreground">
+                        Verify Email Address
+                    </h2>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        Enter the 6-digit verification code dispatched to <span className="text-foreground font-mono font-semibold">{email}</span>
+                    </p>
                 </div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className={cn("p-4 rounded-xl border text-sm", colors.inputBg, colors.inputBorder, colors.textMuted)}
-                >
-                    {t('clickLink')}
-                </motion.div>
+                {error && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{error}</span>
+                    </div>
+                )}
 
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.6 }}
-                >
-                    <Link
-                        href="/login"
-                        className={cn(
-                            "inline-flex items-center gap-2 text-sm transition-colors hover:opacity-80",
-                            colors.accent
-                        )}
+                <form onSubmit={handleVerifyOtp} autoComplete="off" className="space-y-6">
+                    <div className="grid grid-cols-6 gap-2 sm:gap-3">
+                        {otpDigits.map((digit, idx) => (
+                            <input
+                                key={idx}
+                                ref={(el) => {
+                                    otpInputRefs.current[idx] = el;
+                                }}
+                                id={`otp-input-${idx}`}
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={1}
+                                value={digit}
+                                onChange={(e) => handleOtpChange(idx, e.target.value)}
+                                onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                                autoComplete="off"
+                                className="h-12 sm:h-14 text-center text-lg sm:text-xl font-mono font-bold tabular-nums rounded-lg bg-muted/40 border border-border text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all"
+                            />
+                        ))}
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading || otpDigits.join("").length !== 6}
+                        className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-mono text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                     >
-                        <ArrowRight className="w-4 h-4 rotate-180" />
-                        {t('backToLogin')}
-                    </Link>
-                </motion.div>
-            </motion.div>
+                        {loading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <>
+                                <span>VERIFY & ACCESS</span>
+                                <ArrowRight className="w-4 h-4" />
+                            </>
+                        )}
+                    </button>
+                </form>
+
+                <div className="text-center space-y-2 pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                        Didn't receive the token?
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleResendCode}
+                        disabled={resendCooldown > 0 || loading}
+                        className="inline-flex items-center gap-1.5 text-xs font-mono text-primary hover:text-primary/80 disabled:opacity-40 cursor-pointer font-semibold"
+                    >
+                        {resendCooldown > 0 ? (
+                            <span>Resend available in {resendCooldown}s</span>
+                        ) : (
+                            <span>Resend verification code</span>
+                        )}
+                    </button>
+                </div>
+            </div>
         );
     }
 
+    // Screen: Login / Signup Main Form
     return (
-        <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="w-full max-w-md"
-        >
-            {/* Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="space-y-2 mb-6 sm:mb-8"
-            >
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-none mb-2 sm:mb-3">
-                    <span className={cn(isLight ? "text-slate-900" : "text-white")}>
-                        {isLogin ? t('login').slice(0, 3).toUpperCase() : t('signup').slice(0, 4).toUpperCase()}
-                    </span>
-                    <span className={cn("bg-clip-text text-transparent bg-gradient-to-r", colors.gradientFrom, colors.gradientTo)}>
-                        {isLogin ? t('login').slice(3).toUpperCase() : t('signup').slice(4).toUpperCase()}
-                    </span>
+        <div className="w-full space-y-6">
+            <div className="space-y-1">
+                <h2 className="text-xl sm:text-2xl font-bold font-display tracking-tight text-foreground">
+                    {isLogin ? "Sign in to Terminal" : "Create Trader Account"}
                 </h2>
-                <p className={cn("text-xs sm:text-sm font-medium tracking-wide", colors.textMuted)}>
+                <p className="text-xs text-muted-foreground font-mono">
                     {isLogin
-                        ? t('logHelper')
-                        : t('signHelper')}
+                        ? "Enter your credentials to access live feeds and signals"
+                        : "Institutional intelligence, deterministic risk controls"}
                 </p>
-            </motion.div>
+            </div>
 
-            {/* Divider */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="flex items-center gap-3 sm:gap-4 mb-5 sm:mb-6"
-            >
-                <div className={cn("flex-1 h-px bg-gradient-to-r from-transparent to-current", colors.textMutedLight)} />
-                <span className={cn("text-[10px] sm:text-xs uppercase tracking-wider", colors.textMuted)}>{t('continueEmail')}</span>
-                <div className={cn("flex-1 h-px bg-gradient-to-l from-transparent to-current", colors.textMutedLight)} />
-            </motion.div>
+            {error && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{error}</span>
+                </div>
+            )}
 
-            <form onSubmit={handleAuth} className="space-y-4 sm:space-y-5">
+            <form onSubmit={handleAuth} className="space-y-4">
                 {!isLogin && (
-                    <motion.div
-                        initial={{ opacity: 0, x: -15 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="relative group"
-                    >
-                        <div
-                            className={cn(
-                                "absolute inset-0 rounded-xl blur-xl transition-opacity duration-300",
-                                focusedField === "username" ? colors.glow : "opacity-0"
-                            )}
-                        />
-                        <div className="relative flex items-center">
-                            <User
-                                className={cn(
-                                    "absolute left-4 w-5 h-5 transition-colors",
-                                    focusedField === "username" ? colors.iconFocus : colors.icon
-                                )}
-                            />
-                            <input
-                                id="username"
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                onFocus={() => setFocusedField("username")}
-                                onBlur={() => setFocusedField(null)}
-                                className={cn(
-                                    "w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-4 rounded-xl outline-none transition-all placeholder:text-xs sm:placeholder:text-sm",
-                                    colors.inputBg,
-                                    colors.inputBorder,
-                                    colors.text,
-                                    "focus:border-current",
-                                    focusedField === "username" ? colors.accentBorder : "",
-                                    isLight ? "placeholder:text-slate-400" : "placeholder:text-slate-500"
-                                )}
-                                required
-                                placeholder={t('username')}
-                            />
-                        </div>
-                    </motion.div>
-                )}
-
-                <motion.div
-                    initial={{ opacity: 0, x: -15 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: isLogin ? 0.3 : 0.35 }}
-                    className="relative group"
-                >
-                    <div
-                        className={cn(
-                            "absolute inset-0 rounded-xl blur-xl transition-opacity duration-300",
-                            focusedField === "email" ? colors.glow : "opacity-0"
-                        )}
-                    />
-                    <div className="relative flex items-center">
-                        <Mail
-                            className={cn(
-                                "absolute left-4 w-4 h-4 sm:w-5 sm:h-5 transition-colors",
-                                focusedField === "email" ? colors.iconFocus : colors.icon
-                            )}
-                        />
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-mono text-muted-foreground font-medium flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5" />
+                            <span>FULL NAME / HANDLE</span>
+                        </label>
                         <input
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            onFocus={() => setFocusedField("email")}
-                            onBlur={() => setFocusedField(null)}
-                            className={cn(
-                                "w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-4 rounded-xl outline-none transition-all placeholder:text-xs sm:placeholder:text-sm",
-                                colors.inputBg,
-                                colors.inputBorder,
-                                colors.text,
-                                "focus:border-current",
-                                focusedField === "email" ? colors.accentBorder : "",
-                                isLight ? "placeholder:text-slate-400" : "placeholder:text-slate-500"
-                            )}
+                            type="text"
                             required
-                            placeholder={t('email')}
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="e.g. S. Sharma"
+                            className="w-full px-3.5 py-2.5 rounded-lg bg-muted/40 border border-border text-foreground font-mono text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all placeholder:text-muted-foreground/60"
                         />
                     </div>
-                </motion.div>
+                )}
 
-                <motion.div
-                    initial={{ opacity: 0, x: -15 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: isLogin ? 0.4 : 0.45 }}
-                    className="relative group"
-                >
-                    <div
-                        className={cn(
-                            "absolute inset-0 rounded-xl blur-xl transition-opacity duration-300",
-                            focusedField === "password" ? colors.glow : "opacity-0"
-                        )}
+                <div className="space-y-1.5">
+                    <label className="text-xs font-mono text-muted-foreground font-medium flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>WORK OR PERSONAL EMAIL</span>
+                    </label>
+                    <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="name@domain.com"
+                        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/40 border border-border text-foreground font-mono text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all placeholder:text-muted-foreground/60"
                     />
-                    <div className="relative flex items-center">
-                        <Lock
-                            className={cn(
-                                "absolute left-4 w-4 h-4 sm:w-5 sm:h-5 transition-colors",
-                                focusedField === "password" ? colors.iconFocus : colors.icon
-                            )}
-                        />
+                </div>
+
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-mono text-muted-foreground font-medium flex items-center gap-1.5">
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>PASSWORD</span>
+                        </label>
+                        {isLogin && (
+                            <Link href="/forgot-password" className="text-[11px] font-mono text-primary hover:underline">
+                                Forgot password?
+                            </Link>
+                        )}
+                    </div>
+                    <div className="relative">
                         <input
-                            id="password"
                             type={showPassword ? "text" : "password"}
-                            value={password}
-                            onChange={(e) => {
-                                setPassword(e.target.value);
-                                calculatePasswordStrength(e.target.value);
-                            }}
-                            onFocus={() => setFocusedField("password")}
-                            onBlur={() => setFocusedField(null)}
-                            className={cn(
-                                "w-full pl-10 sm:pl-12 pr-10 sm:pr-12 py-3 sm:py-4 rounded-xl outline-none transition-all placeholder:text-xs sm:placeholder:text-sm",
-                                colors.inputBg,
-                                colors.inputBorder,
-                                colors.text,
-                                "focus:border-current",
-                                focusedField === "password" ? colors.accentBorder : "",
-                                isLight ? "placeholder:text-slate-400" : "placeholder:text-slate-500"
-                            )}
                             required
-                            placeholder={t('password')}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="••••••••••••"
+                            className="w-full px-3.5 py-2.5 rounded-lg bg-muted/40 border border-border text-foreground font-mono text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all placeholder:text-muted-foreground/60 pr-10"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className={cn(
-                                "absolute right-3 sm:right-4 transition-colors",
-                                colors.icon,
-                                "hover:text-current"
-                            )}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         >
-                            {showPassword ? <EyeOff size={16} className="sm:w-5 sm:h-5" /> : <Eye size={16} className="sm:w-5 sm:h-5" />}
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                     </div>
+                </div>
 
-                    {/* Password strength indicator for signup */}
-                    {!isLogin && password && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            className="mt-3 sm:mt-4 space-y-2 sm:space-y-3"
-                        >
-                            <div className={cn("h-1.5 rounded-full overflow-hidden", isLight ? "bg-slate-200" : "bg-white/10")}>
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${(passwordStrength / passwordRequirements.length) * 100}%` }}
-                                    className={cn(
-                                        "h-full rounded-full transition-colors duration-300",
-                                        passwordStrength <= 2 ? "bg-red-500" :
-                                            passwordStrength <= 3 ? "bg-yellow-500" : "bg-green-500"
-                                    )}
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 text-[10px] sm:text-xs">
-                                {passwordRequirements.map((req, index) => {
-                                    const isMet = req.regex.test(password);
-                                    return (
-                                        <div
-                                            key={index}
-                                            className={cn(
-                                                "flex items-center gap-1.5 transition-colors",
-                                                isMet ? colors.success : colors.textMuted
-                                            )}
-                                        >
-                                            <CheckCircle size={12} />
-                                            {t(req.label)}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </motion.div>
-                    )}
-                </motion.div>
-
-                {isLogin && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.45 }}
-                        className="flex justify-end"
-                    >
-                        <Link
-                            href="/forgot-password"
-                            className={cn("text-[10px] sm:text-xs transition-colors hover:opacity-80", colors.textMuted, "hover:" + colors.accent.replace("text-", ""))}
-                        >
-                            {t('forgotPassword')}
-                        </Link>
-                    </motion.div>
+                {/* Password strength checklist for signup */}
+                {!isLogin && password.length > 0 && (
+                    <div className="p-3 rounded-lg bg-background border border-border space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-mono">
+                            <span className="text-muted-foreground">Entropy / Complexity:</span>
+                            <span className={cn("font-bold", passwordStrength === 5 ? "text-emerald-400" : "text-amber-400")}>
+                                {passwordStrength === 5 ? "SECURE" : `${passwordStrength}/5 CHECKS`}
+                            </span>
+                        </div>
+                        <div className="space-y-1">
+                            {passwordRequirements.map((req, i) => {
+                                const passed = req.regex.test(password);
+                                return (
+                                    <div key={i} className="flex items-center gap-2 text-[11px] font-mono">
+                                        <CheckCircle2 className={cn("w-3 h-3 shrink-0", passed ? "text-emerald-400" : "text-muted-foreground/40")} />
+                                        <span className={passed ? "text-foreground" : "text-muted-foreground"}>{req.label}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
                 )}
 
-                <motion.button
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: isLogin ? 0.5 : 0.55 }}
+                <button
                     type="submit"
                     disabled={loading}
-                    className={cn(
-                        "group relative w-full py-3 sm:py-4 rounded-xl overflow-hidden font-bold uppercase tracking-wider disabled:opacity-70 flex items-center justify-center gap-2"
-                    )}
+                    className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-mono text-xs font-bold tracking-wider hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer uppercase mt-2"
                 >
-                    {/* Gradient background */}
-                    <div className={cn(
-                        "absolute inset-0 bg-gradient-to-r transition-opacity duration-300 opacity-100",
-                        colors.gradientFrom,
-                        colors.gradientTo
-                    )} />
-
-                    {/* Grid overlay */}
-                    <div className={cn("absolute inset-0 opacity-20 bg-[url('/grid.svg')]", isLight ? "brightness-0 invert" : "")} />
-
-                    <div className={cn("relative flex items-center justify-center gap-1 sm:gap-2", colors.buttonText)}>
-                        {loading ? (
-                            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                        ) : (
-                            <>
-                                <span className="text-xs sm:text-sm">{loading ? t('processing') : isLogin ? t('signInAction') : t('createAccountAction')}</span>
-                                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
-                            </>
-                        )}
-                    </div>
-                </motion.button>
+                    {loading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <>
+                            <span>{isLogin ? "Authenticate Session" : "Proceed to Verification"}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                        </>
+                    )}
+                </button>
             </form>
 
-            {/* Footer */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="pt-5 sm:pt-6 flex justify-center items-center gap-3 sm:gap-4"
-            >
-                <Link
-                    href={isLogin ? "/signup" : "/login"}
-                    className={cn(
-                        "text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors hover:opacity-80",
-                        colors.textMuted,
-                        "hover:" + colors.accent.replace("text-", "")
-                    )}
-                >
-                    {isLogin ? t('createAccountAction') : t('backToLogin')}
-                </Link>
-            </motion.div>
-
-
-        </motion.div>
+            <div className="pt-4 border-t border-border text-center">
+                <p className="text-xs text-muted-foreground font-mono">
+                    {isLogin ? "Don't have an institutional seat? " : "Already hold an authorized seat? "}
+                    <Link
+                        href={isLogin ? "/signup" : "/login"}
+                        className="text-primary font-bold hover:underline"
+                    >
+                        {isLogin ? "Register Now" : "Sign In"}
+                    </Link>
+                </p>
+            </div>
+        </div>
     );
 }

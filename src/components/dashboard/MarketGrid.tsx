@@ -1,20 +1,16 @@
+"use client";
+
 import { Coin } from "@/types";
-import { ArrowUpRight, ArrowDownRight, Plus, Brain, Check, Loader2 } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Plus, Brain, Check, Bookmark, BookmarkCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useState, useEffect, memo, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "@/i18n/routing";
 import { LocalStorage } from "@/lib/storage";
 import AssetIcon from "./AssetIcon";
 import "crypto-icons/font.css";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatUtils";
-import { SpotlightCard } from "@/components/aceternity/SpotlightCard";
-import { TiltCard } from "@/components/ui/tilt-card";
-import { MagneticCard } from "@/components/ui/magnetic-button";
-import { Sparkles } from "@/components/ui/sparkles";
-import { HoverScale } from "@/components/ui/shine-effect";
-import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface MarketGridProps {
@@ -23,16 +19,16 @@ interface MarketGridProps {
     assetType: 'stock' | 'crypto';
     watchlistIds?: Set<string>;
     onWatchlistChange?: () => void;
-    source?: 'market' | 'watchlist'; // Track where predictions are triggered from
+    source?: 'market' | 'watchlist';
 }
 
-function MarketGridComponent({
+export default function MarketGrid({
     coins,
     onSelect,
     assetType,
     watchlistIds: initialWatchlistIds,
     onWatchlistChange,
-    source = 'market' // Default to market if not specified
+    source = 'market'
 }: MarketGridProps) {
     const { user } = useAuth();
     const router = useRouter();
@@ -48,178 +44,175 @@ function MarketGridComponent({
         }
     }, [initialWatchlistIds, user]);
 
-    const [generatingPrediction, setGeneratingPrediction] = useState<string | null>(null);
-
-    // Generate prediction by navigating to the predictions page
     const handlePrediction = useCallback((coin: Coin) => {
         if (!user) {
-            toast.error("Please login to use AI features.");
+            toast.error("Please log in to generate AI predictions.");
             return;
         }
-
-        // Navigate immediately to the predictions page with the necessary parameters
         router.push(`/predictions?predict=${coin.symbol.toUpperCase()}&type=${assetType}&timeframe=4h&source=${source}`);
     }, [user, assetType, router, source]);
 
+    const toggleWatchlist = async (e: React.MouseEvent, coin: Coin) => {
+        e.stopPropagation();
+        if (!user) {
+            toast.error("Please log in to manage your watchlist.");
+            return;
+        }
+
+        const isPinned = watchlistIds.has(coin.id);
+
+        try {
+            const { supabase } = await import("@/lib/supabase");
+
+            if (isPinned) {
+                const { error } = await supabase
+                    .from('watchlist')
+                    .delete()
+                    .eq('user_id', user.id)
+                    .eq('coin_id', coin.id);
+
+                if (error) throw error;
+
+                LocalStorage.removeFromWatchlist(user.id, coin.id);
+                setWatchlistIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(coin.id);
+                    return next;
+                });
+                toast.success(`Removed ${coin.symbol.toUpperCase()} from watchlist`);
+            } else {
+                const { error } = await supabase
+                    .from('watchlist')
+                    .insert({
+                        user_id: user.id,
+                        coin_id: coin.id,
+                        coin_data: coin,
+                        asset_type: assetType,
+                    } as any);
+
+                if (error) throw error;
+
+                LocalStorage.addToWatchlist(user.id, coin, assetType);
+                setWatchlistIds(prev => new Set([...prev, coin.id]));
+                toast.success(`Added ${coin.symbol.toUpperCase()} to watchlist`);
+            }
+
+            await queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+            await queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+            onWatchlistChange?.();
+        } catch (err: any) {
+            toast.error(err.message || "Failed to update watchlist");
+        }
+    };
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {coins.map((coin, index) => {
-                const isPositive = coin.price_change_percentage_24h >= 0;
+        <div className="rounded-xl border border-border bg-card/60 overflow-hidden">
+            {/* Table Header (Hidden on Mobile) */}
+            <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 border-b border-border bg-muted/30 font-mono text-[11px] text-muted-foreground uppercase font-semibold">
+                <div className="col-span-4">Asset</div>
+                <div className="col-span-3 text-right">Price</div>
+                <div className="col-span-2 text-right">24h Change</div>
+                <div className="col-span-3 text-right">Actions</div>
+            </div>
 
-                return (
-                    <TiltCard
-                        key={`${assetType}-${coin.symbol}-${coin.id ?? index}`}
-                        className="group cursor-pointer"
-                        tiltStrength={8}
-                        perspective={1000}
-                        glareEffect={true}
-                    >
-                        <HoverBorderGradient
-                            containerClassName="rounded-3xl w-full h-full shadow-xl"
-                            className="w-full h-full bg-transparent p-0 rounded-3xl"
-                            as="div"
-                            duration={3}
+            {/* List of Assets */}
+            <div className="divide-y divide-border/50">
+                {coins.map((coin, index) => {
+                    const isPositive = (coin.price_change_percentage_24h ?? 0) >= 0;
+                    const isPinned = watchlistIds.has(coin.id);
+                    const key = `${assetType}-${coin.symbol}-${coin.id ?? index}`;
+
+                    return (
+                        <div
+                            key={key}
+                            className="p-4 md:px-4 md:py-3 grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center hover:bg-muted/20 transition-colors group"
                         >
-                            <SpotlightCard
-                                className="h-full p-4 transition-all duration-300 rounded-3xl border-0"
-                                spotlightColor="hsl(var(--primary) / 0.15)"
-                                fillColor="hsl(var(--primary) / 0.05)"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-3xl" />
-
-                                <div className="relative z-10 flex flex-col h-full justify-between gap-4">
-                                    {/* Top Row: Info & Actions */}
-                                    <div className="flex justify-between items-start gap-2 w-full">
-                                        <div className="flex gap-3 md:gap-4 items-center min-w-0">
-                                            <div className="relative">
-                                                <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-card/50 flex items-center justify-center shadow-[0_0_15px_rgba(var(--primary),0.2)] group-hover:shadow-[0_0_25px_rgba(var(--primary),0.4)] transition-shadow duration-300">
-                                                    <AssetIcon
-                                                        asset={coin}
-                                                        size={36}
-                                                        type={assetType}
-                                                    />
-                                                </div>
-                                                <div className="absolute inset-0 rounded-full border-2 border-primary/30 opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <HoverScale scale={1.05} duration={150}>
-                                                    <h3 className="text-base md:text-lg font-black tracking-tight text-foreground leading-tight truncate group-hover:text-primary transition-colors">
-                                                        {coin.symbol.toUpperCase()}
-                                                    </h3>
-                                                </HoverScale>
-                                                <p className="text-[10px] md:text-xs text-muted-foreground font-medium truncate group-hover:text-foreground transition-colors">
-                                                    {coin.name}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* Right: Actions */}
-                                        <div className="flex gap-1.5 md:gap-2 flex-shrink-0">
-                                            <Sparkles
-                                                sparklesCount={15}
-                                                sparklesColor="#ff9f1c"
-                                                sparkleSize={3}
-                                            >
-                                                <button
-                                                    className={cn(
-                                                        "w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-black transition-all duration-300 shadow-sm z-20 hover:scale-110 hover:shadow-lg hover:shadow-primary/30",
-                                                        generatingPrediction === coin.id && "opacity-50 cursor-not-allowed"
-                                                    )}
-                                                    title="AI Prediction"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handlePrediction(coin);
-                                                    }}
-                                                    disabled={generatingPrediction === coin.id}
-                                                >
-                                                    {generatingPrediction === coin.id ? (
-                                                        <Loader2 size={16} strokeWidth={2} className="animate-spin" />
-                                                    ) : (
-                                                        <Brain size={16} strokeWidth={2} />
-                                                    )}
-                                                </button>
-                                            </Sparkles>
-                                            <button
-                                                onClick={async (e) => {
-                                                    e.stopPropagation();
-                                                    if (watchlistIds.has(coin.id)) return;
-
-                                                    if (!user) {
-                                                        toast.error("Please login to use watchlist");
-                                                        return;
-                                                    }
-
-                                                    try {
-                                                        const { supabase } = await import("@/lib/supabase");
-                                                        
-                                                        // 1. Attempt Supabase Insert first
-                                                        const { error } = await supabase.from('watchlist').insert({
-                                                            user_id: user.id,
-                                                            coin_id: coin.id,
-                                                            coin_data: coin,
-                                                            asset_type: assetType
-                                                        } as any);
-
-                                                        if (error) {
-                                                            console.error("Supabase Watchlist Error:", error);
-                                                            toast.error("Failed to sync with cloud. Please try again.");
-                                                            return;
-                                                        }
-
-                                                        // 2. Local Update
-                                                        LocalStorage.addToWatchlist(user.id, coin, assetType);
-                                                        setWatchlistIds(prev => new Set([...prev, coin.id]));
-                                                        
-                                                        // 3. Invalidate Global Cache
-                                                        await queryClient.invalidateQueries({ queryKey: ['watchlist'] });
-                                                        
-                                                        toast.success("Added to Watchlist!");
-                                                        onWatchlistChange?.();
-
-                                                    } catch (err) {
-                                                        console.error("Watchlist Error:", err);
-                                                        toast.error("An unexpected error occurred.");
-                                                    }
-                                                }}
-                                                disabled={watchlistIds.has(coin.id)}
-                                                className={cn(
-                                                    "w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full transition-all duration-300 shadow-lg z-20",
-                                                    "hover:scale-110",
-                                                    watchlistIds.has(coin.id)
-                                                        ? "bg-green-500/20 text-green-500 cursor-default border border-green-500/30"
-                                                        : "bg-primary text-black hover:bg-primary/80 hover:shadow-primary/30"
-                                                )}
-                                                title={watchlistIds.has(coin.id) ? "Already in Watchlist" : "Add to Watchlist"}
-                                            >
-                                                {watchlistIds.has(coin.id) ? <Check size={16} strokeWidth={3} /> : <Plus size={16} strokeWidth={3} />}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Bottom Row: Price & Stats */}
-                                    <div className="mt-4 w-full">
-                                        <div className="text-xl md:text-2xl font-black tracking-tight text-foreground mb-0.5 group-hover:text-primary transition-colors duration-300">
-                                            {formatCurrency(coin.current_price, assetType === 'stock')}
-                                        </div>
-
-                                        <div className={cn(
-                                            "flex items-center gap-0.5 text-[11px] md:text-xs font-bold transition-all duration-300",
-                                            isPositive ? 'text-[#00cc88] group-hover:text-[#00ff99]' : 'text-rose-500 group-hover:text-red-400'
-                                        )}>
-                                            <span className="transform group-hover:scale-125 transition-transform duration-200">
-                                                {isPositive ? <ArrowUpRight className="w-3.5 h-3.5 md:w-4 md:h-4" strokeWidth={3} /> : <ArrowDownRight className="w-3.5 h-3.5 md:w-4 md:h-4" strokeWidth={3} />}
+                            {/* Asset Identity */}
+                            <div className="md:col-span-4 flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-muted/40 border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                                    <AssetIcon asset={coin} size={24} type={assetType} />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono font-bold text-sm text-foreground">
+                                            {coin.symbol.toUpperCase()}
+                                        </span>
+                                        {coin.market_cap_rank && (
+                                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-muted/60 border border-border text-muted-foreground">
+                                                #{coin.market_cap_rank}
                                             </span>
-                                            <span>{Math.abs(coin.price_change_percentage_24h).toFixed(2)}%</span>
-                                        </div>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                        {coin.name}
                                     </div>
                                 </div>
-                            </SpotlightCard>
-                        </HoverBorderGradient>
-                    </TiltCard>
-                );
-            })}
+                            </div>
+
+                            {/* Price */}
+                            <div className="md:col-span-3 flex md:flex-col justify-between md:justify-center items-center md:items-end">
+                                <span className="md:hidden text-xs font-mono text-muted-foreground">Price:</span>
+                                <span className="font-mono text-sm font-bold text-foreground tabular-nums">
+                                    {formatCurrency(coin.current_price, assetType === 'stock')}
+                                </span>
+                            </div>
+
+                            {/* 24h Change */}
+                            <div className="md:col-span-2 flex md:flex-col justify-between md:justify-center items-center md:items-end">
+                                <span className="md:hidden text-xs font-mono text-muted-foreground">24h Change:</span>
+                                <span
+                                    className={`inline-flex items-center gap-0.5 text-xs font-mono font-bold tabular-nums px-2 py-0.5 rounded ${
+                                        isPositive
+                                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                            : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                    }`}
+                                >
+                                    {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                    {isPositive ? "+" : ""}{Number(coin.price_change_percentage_24h ?? 0).toFixed(2)}%
+                                </span>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="md:col-span-3 flex items-center justify-end gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-border/40">
+                                {/* AI Prediction Trigger */}
+                                <button
+                                    onClick={() => handlePrediction(coin)}
+                                    title="Launch AI Confluence Analysis"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/25 text-xs font-mono font-semibold transition-colors cursor-pointer"
+                                >
+                                    <Brain className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">AI SIGNAL</span>
+                                </button>
+
+                                {/* Watchlist Pin Toggle */}
+                                <button
+                                    onClick={(e) => toggleWatchlist(e, coin)}
+                                    title={isPinned ? "Remove from watchlist" : "Add to watchlist"}
+                                    className={cn(
+                                        "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors cursor-pointer border",
+                                        isPinned
+                                            ? "bg-primary/15 text-primary border-primary/30"
+                                            : "bg-muted/30 text-muted-foreground border-border hover:text-foreground hover:bg-muted/50"
+                                    )}
+                                >
+                                    {isPinned ? (
+                                        <>
+                                            <BookmarkCheck className="w-3.5 h-3.5" />
+                                            <span className="hidden sm:inline">PINNED</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Bookmark className="w-3.5 h-3.5" />
+                                            <span className="hidden sm:inline">PIN</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 }
 
-export default memo(MarketGridComponent);

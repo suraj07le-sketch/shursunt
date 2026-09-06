@@ -24,21 +24,54 @@ const buildProxyUrl = (endpoint: string, params?: Record<string, string>) => {
 };
 
 export const fetchTrendingStocks = async () => {
+    const CACHE_KEY = "trending_stocks_cache";
+    const CACHE_TIME = 10 * 60 * 1000; // 10 minutes
+
     try {
+        // 1. Check Cache
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < CACHE_TIME) return data;
+        }
+
         const res = await indianApiLimiter.add(() => fetch(buildProxyUrl("trending_stocks")));
+        
+        if (res.status === 429) throw new Error("429");
         if (!res.ok) throw new Error("API Offline");
-        return await res.json();
-    } catch {
-        console.warn("[MarketInsights] Trending fetch failed");
+        
+        const data = await res.json();
+        
+        // 2. Save to Cache
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+        return data;
+    } catch (err: any) {
+        if (err.message === "429") {
+            console.warn("[MarketInsights] Rate Limit (429) hit for Trending. Backing off...");
+        } else {
+            console.warn("[MarketInsights] Trending fetch failed", err);
+        }
         return [];
     }
 };
 
 export const fetchNSEMostActive = async (): Promise<StockInsight[]> => {
+    const CACHE_KEY = "nse_active_cache";
+    const CACHE_TIME = 15 * 60 * 1000; // 15 minutes
+
     try {
-        // Correct endpoint as per probe-nse.js: NSE_most_active
+        // 1. Check Cache
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < CACHE_TIME) return data;
+        }
+
         const res = await indianApiLimiter.add(() => fetch(buildProxyUrl("NSE_most_active")));
+        
+        if (res.status === 429) throw new Error("429");
         if (!res.ok) throw new Error("API Path Error");
+        
         const data = await res.json();
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,16 +79,20 @@ export const fetchNSEMostActive = async (): Promise<StockInsight[]> => {
         if (!Array.isArray(list)) return [];
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return list.map((item: any) => ({
+        const results: StockInsight[] = list.map((item: any) => ({
             symbol: item.ticker ? item.ticker.replace('.NS', '') : item.symbol,
             stock_name: item.company || item.stock_name || item.name,
             current_price: item.price || item.current_price || item.currentPrice?.NSE || 0,
             change_percent: item.percent_change || item.change_percent || item.pChange || 0,
-            status: (item.percent_change || item.change_percent || item.pChange || 0) >= 0 ? "UP" : "DOWN"
+            status: ((item.percent_change || item.change_percent || item.pChange || 0) >= 0 ? "UP" : "DOWN") as "UP" | "DOWN"
         }));
-    } catch (err: unknown) {
-        if (err instanceof Error && err.message?.includes("429")) {
-            console.warn("[MarketInsights] Rate Limit Exceeded (429) for NSE Most Active. Cooling down...");
+
+        // 2. Save to Cache
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ data: results, timestamp: Date.now() }));
+        return results;
+    } catch (err: any) {
+        if (err.message === "429") {
+            console.warn("[MarketInsights] Rate Limit (429) hit for NSE Most Active. Cooling down...");
         } else {
             console.warn("[MarketInsights] NSE Most Active fetch failed", err);
         }

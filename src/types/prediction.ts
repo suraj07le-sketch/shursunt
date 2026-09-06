@@ -1,10 +1,10 @@
-export interface Prediction {
+﻿export interface Prediction {
     id: string;
     stock_name?: string;
     coin_name?: string;
     coin?: string;
     type: 'stock' | 'crypto';
-    trend: 'UP' | 'DOWN';
+    trend: 'UP' | 'DOWN' | 'BUY' | 'SELL' | 'HOLD';
     predicted_price: number;
     current_price: number;
     confidence: number;
@@ -18,4 +18,8 @@ export interface Prediction {
     status?: 'completed' | 'pending';
     predicted_time_ist?: string;
     prediction_time_ist?: string;
+    prediction_change_percent?: number;
+    stop_loss_price?: number;
+    confluence?: string;
+    market_regime?: string;
 }

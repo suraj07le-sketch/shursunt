@@ -1,205 +1,328 @@
-"use client";
+﻿"use client";
 
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { ThemeSwitcher } from "@/components/layout/ThemeSwitcher";
-import { LogOut, User, Settings as SettingsIcon, Shield, Mail } from "lucide-react";
-import { motion } from "framer-motion";
-import Link from "next/link";
+import { useTheme } from "next-themes";
+import {
+    User,
+    Settings as SettingsIcon,
+    Shield,
+    Mail,
+    LogOut,
+    Bell,
+    Check,
+    KeyRound,
+    Clock,
+    Monitor,
+    Sun,
+    Moon,
+    Laptop,
+    SlidersHorizontal,
+    ShieldCheck
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { SettingsCard } from "@/components/ui/SettingsCard";
-import { GridBackground } from "@/components/ui/GridBackground";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { SolarisIcon } from "@/components/ui/SolarisIcon";
 
 export default function SettingsPage() {
     const { user, signOut } = useAuth();
     const router = useRouter();
+    const { theme, setTheme } = useTheme();
 
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: { staggerChildren: 0.1 }
+    const [chartTimeframe, setChartTimeframe] = useState("4h");
+    const [defaultSegment, setDefaultSegment] = useState("stocks");
+    const [alertsEnabled, setAlertsEnabled] = useState(true);
+    const [emailDigest, setEmailDigest] = useState(false);
+    const [soundTelemetry, setSoundTelemetry] = useState(false);
+
+    const handleLogout = async () => {
+        try {
+            await signOut();
+            toast.success("Terminal session terminated successfully.");
+            router.push("/login");
+        } catch {
+            toast.error("Failed to terminate session.");
         }
     };
 
-    const itemVariants = {
-        hidden: { opacity: 0, y: 20 },
-        show: { opacity: 1, y: 0 }
+    const handlePasswordReset = async () => {
+        toast.info("Password reset dispatch initiated. Check your registered email.");
     };
 
-    const handleLogout = async () => {
-        await signOut();
-        router.push("/login");
-    };
+    const userEmail = user?.email || "trader@shursunt.internal";
+    const userId = user?.id ? `${user.id.slice(0, 8)}...${user.id.slice(-6)}` : "ANON_SESSION";
 
     return (
-        <div className="relative min-h-screen w-full font-sans">
-            {/* Background Grid */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <GridBackground />
-            </div>
-
-            <div className="relative z-10 max-w-6xl mx-auto p-2 md:p-8 space-y-8 pb-20">
-                {/* Header Section */}
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
-                >
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-2xl bg-muted/50 border border-border/50 backdrop-blur-md">
-                                <SettingsIcon className="w-8 h-8 text-primary animate-spin-slow" />
-                            </div>
-                            <h1 className="text-5xl font-black tracking-tighter text-foreground flex items-center gap-4">
-                                Settings
-                                <span className="h-3 w-3 rounded-full bg-primary animate-pulse" />
+        <div className="space-y-8 pb-16 max-w-5xl mx-auto">
+            {/* Terminal Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-card border border-border">
+                        <SettingsIcon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight text-foreground">
+                                Terminal Configuration
                             </h1>
+                            <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
+                                AUTHENTICATED
+                            </span>
                         </div>
-                        <p className="text-muted-foreground text-lg max-w-lg">
-                            Manage your holographic identity and neural interface preferences.
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                            Manage your trader credentials, interface preferences, and execution alert boundaries
                         </p>
                     </div>
-                </motion.div>
+                </div>
 
-                <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="show"
-                    className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+                <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="self-start sm:self-auto px-3.5 py-2 rounded-lg border border-destructive/30 bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-mono font-semibold flex items-center gap-2 transition-colors cursor-pointer"
                 >
-                    {/* User Profile Card - Spans full width on mobile, 2/3 on desktop */}
-                    <div className="lg:col-span-3">
-                        <SettingsCard className="p-0" gradient="pink">
-                            <div className="flex flex-col md:flex-row items-center gap-8 md:p-4">
-                                <div className="relative group">
-                                    <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-border/50 shadow-2xl">
-                                        {/* Avatar Placeholder or Image */}
-                                        {user?.user_metadata?.avatar_url ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={user.user_metadata.avatar_url} alt="User" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                        ) : (
-                                            <div className="w-full h-full bg-muted flex items-center justify-center text-4xl font-bold text-muted-foreground">
-                                                {user?.email?.charAt(0).toUpperCase()}
-                                            </div>
-                                        )}
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Terminate Session</span>
+                </button>
+            </div>
 
-                                        {/* Edit Overlay */}
-                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                            <span className="text-white text-xs font-bold tracking-widest uppercase">Edit</span>
-                                        </div>
-                                    </div>
-                                    {/* Animated Ring */}
-                                    <div className="absolute -inset-4 border-2 border-primary/30 rounded-full animate-pulse opacity-50" />
-                                </div>
-
-                                <div className="flex-1 text-center md:text-left space-y-3">
-                                    <div>
-                                        <h2 className="text-2xl md:text-3xl font-black text-foreground uppercase tracking-widest">
-                                            {user?.email?.split('@')[0]}
-                                        </h2>
-                                        <div className="flex items-center justify-center md:justify-start gap-2 text-muted-foreground mt-1 font-mono text-xs">
-                                            <Mail className="w-3 h-3" />
-                                            {user?.email}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                                        <span className="px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold tracking-widest uppercase flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                                            Active Neural Link
-                                        </span>
-                                        <span className="px-4 py-1.5 rounded-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-foreground/60 text-xs font-bold tracking-widest uppercase">
-                                            Standard Plan
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col gap-3 w-full md:w-auto">
-                                    <button
-                                        onClick={handleLogout}
-                                        className="px-6 py-3 rounded-xl bg-red-100 dark:bg-red-500/10 hover:bg-red-200 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-bold text-sm tracking-wide transition-colors flex items-center justify-center gap-2 group border border-transparent"
-                                    >
-                                        <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                                        LOGOUT
-                                    </button>
-                                </div>
+            {/* Profile Identity Card */}
+            <div className="p-6 rounded-xl border border-border bg-card space-y-4">
+                <div className="flex items-center justify-between pb-4 border-b border-border">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center font-mono font-bold text-primary text-base">
+                            {userEmail.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                            <h3 className="font-mono font-bold text-sm text-foreground">{userEmail}</h3>
+                            <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mt-0.5">
+                                <span>UID: {userId}</span>
+                                <span className="text-border">|</span>
+                                <span className="text-emerald-400 font-semibold">Seat: Professional Trial</span>
                             </div>
-                        </SettingsCard>
+                        </div>
                     </div>
 
-                    {/* Appearance Settings */}
-                    <motion.div variants={itemVariants} className="lg:col-span-2">
-                        <SettingsCard className="h-full" gradient="cyan">
-                            <div className="flex items-center gap-4 mb-8">
-                                <div className="p-3 rounded-xl bg-cyan-100 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400">
-                                    <SettingsIcon className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-foreground">Interface</h3>
-                                    <p className="text-xs text-muted-foreground tracking-widest uppercase">Visual Customization</p>
-                                </div>
-                            </div>
+                    <span className="text-xs font-mono px-2.5 py-1 rounded bg-muted text-foreground border border-border">
+                        RLS PROTOCOL: ENFORCED
+                    </span>
+                </div>
 
-                            <div className="space-y-6">
-                                <section>
-                                    <h4 className="text-sm font-bold text-foreground/50 uppercase tracking-widest mb-4">System Theme</h4>
-                                    {/* Theme Switcher Component */}
-                                    <div className="p-1">
-                                        <ThemeSwitcher />
-                                    </div>
-                                    <p className="mt-4 text-xs text-muted-foreground/60 leading-relaxed">
-                                        Select your preferred visual cortex stimulation mode. Toggle between <span className="text-primary font-bold">Neon</span> and <span className="text-cyan-400 font-bold">Cyber</span> presets.
-                                    </p>
-                                </section>
-                            </div>
-                        </SettingsCard>
-                    </motion.div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
+                    <div className="p-3 rounded-lg bg-background border border-border/70">
+                        <span className="text-[10px] text-muted-foreground uppercase block">Security Role</span>
+                        <span className="font-bold text-foreground mt-0.5 block">Authorized Trader</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-background border border-border/70">
+                        <span className="text-[10px] text-muted-foreground uppercase block">Data Retention</span>
+                        <span className="font-bold text-foreground mt-0.5 block">Encrypted Cloud Sync</span>
+                    </div>
+                    <div className="p-3 rounded-lg bg-background border border-border/70">
+                        <span className="text-[10px] text-muted-foreground uppercase block">Telemetry Stream</span>
+                        <span className="font-bold text-emerald-400 mt-0.5 block">Live WebSocket</span>
+                    </div>
+                </div>
+            </div>
 
-                    {/* Security Settings */}
-                    <motion.div variants={itemVariants} className="lg:col-span-1">
-                        <SettingsCard className="h-full" gradient="default">
-                            <div className="flex items-center gap-4 mb-8">
-                                <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400">
-                                    <Shield className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-foreground">Security</h3>
-                                    <p className="text-xs text-muted-foreground tracking-widest uppercase">Access Control</p>
-                                </div>
-                            </div>
+            {/* Terminal Interface & Visual Styling */}
+            <div className="p-6 rounded-xl border border-border bg-card space-y-5">
+                <div className="flex items-center gap-2.5 pb-3 border-b border-border">
+                    <SlidersHorizontal className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-bold text-foreground font-display">
+                        Display & Workspace Defaults
+                    </h3>
+                </div>
 
-                            <div className="space-y-4">
-                                <button className="w-full p-4 rounded-xl bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors text-left group">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="font-medium text-foreground">Change Password</span>
-                                        <span className="text-[10px] px-2 py-0.5 rounded bg-black/5 dark:bg-white/5 text-muted-foreground font-mono">SUPABASE AUTH</span>
-                                    </div>
-                                    <div className="h-1 w-12 bg-black/10 dark:bg-white/10 rounded-full group-hover:w-full transition-all duration-500" />
+                <div className="space-y-4">
+                    {/* Theme Mode Switcher */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2 border-b border-border/60">
+                        <div>
+                            <span className="text-xs font-mono font-bold text-foreground block">Color Theme</span>
+                            <span className="text-xs text-muted-foreground font-sans">
+                                Select terminal contrast mode (Fintech dark recommended)
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 p-1 rounded-lg border border-border bg-background">
+                            {[
+                                { id: "dark", label: "Fintech Dark", icon: Moon },
+                                { id: "light", label: "Daylight", icon: Sun },
+                                { id: "system", label: "System OS", icon: Laptop }
+                            ].map((t) => {
+                                const Icon = t.icon;
+                                const isActive = theme === t.id;
+                                return (
+                                    <button
+                                        key={t.id}
+                                        type="button"
+                                        onClick={() => setTheme(t.id)}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded text-xs font-mono font-medium flex items-center gap-1.5 transition-all cursor-pointer",
+                                            isActive
+                                                ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        <Icon className="w-3.5 h-3.5" />
+                                        <span>{t.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Default Horizon */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2 border-b border-border/60">
+                        <div>
+                            <span className="text-xs font-mono font-bold text-foreground block">Default Signal Horizon</span>
+                            <span className="text-xs text-muted-foreground font-sans">
+                                Pre-selected timeframe for AI confluence setups
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 p-1 rounded-lg border border-border bg-background font-mono text-xs">
+                            {["1h", "4h", "1d", "1w"].map((tf) => (
+                                <button
+                                    key={tf}
+                                    type="button"
+                                    onClick={() => setChartTimeframe(tf)}
+                                    className={cn(
+                                        "px-2.5 py-1 rounded uppercase font-semibold transition-all cursor-pointer",
+                                        chartTimeframe === tf
+                                            ? "bg-primary text-primary-foreground"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {tf}
                                 </button>
+                            ))}
+                        </div>
+                    </div>
 
-                                <div className="w-full p-4 rounded-xl bg-black/5 dark:bg-white/5">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="font-medium text-foreground">Notifications</span>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                            <span className="text-[10px] text-foreground/50 font-bold">ACTIVE</span>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2 mt-4">
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <div className="w-1 h-1 rounded-full bg-primary" />
-                                            Market Alerts
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <div className="w-1 h-1 rounded-full bg-primary" />
-                                            System Updates
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </SettingsCard>
-                    </motion.div>
-                </motion.div>
+                    {/* Default Asset Class */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2">
+                        <div>
+                            <span className="text-xs font-mono font-bold text-foreground block">Primary Market Focus</span>
+                            <span className="text-xs text-muted-foreground font-sans">
+                                Default screener segment upon launching terminal
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 p-1 rounded-lg border border-border bg-background font-mono text-xs">
+                            {[
+                                { id: "stocks", label: "Indian Equities (NSE)" },
+                                { id: "crypto", label: "Digital Assets" }
+                            ].map((seg) => (
+                                <button
+                                    key={seg.id}
+                                    type="button"
+                                    onClick={() => setDefaultSegment(seg.id)}
+                                    className={cn(
+                                        "px-3 py-1 rounded font-semibold transition-all cursor-pointer",
+                                        defaultSegment === seg.id
+                                            ? "bg-primary text-primary-foreground"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {seg.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Notification & Telemetry Thresholds */}
+            <div className="p-6 rounded-xl border border-border bg-card space-y-4">
+                <div className="flex items-center gap-2.5 pb-3 border-b border-border">
+                    <Bell className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-bold text-foreground font-display">
+                        Alert Boundaries & Dispatch
+                    </h3>
+                </div>
+
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between py-2 border-b border-border/60">
+                        <div>
+                            <span className="text-xs font-mono font-bold text-foreground block">High Conviction Signal Notifications</span>
+                            <span className="text-xs text-muted-foreground font-sans">
+                                Immediate browser notifications for setups with &ge; 80% confluence
+                            </span>
+                        </div>
+                        <input
+                            type="checkbox"
+                            checked={alertsEnabled}
+                            onChange={(e) => {
+                                setAlertsEnabled(e.target.checked);
+                                toast.info(e.target.checked ? "Signal push notifications enabled" : "Signal notifications muted");
+                            }}
+                            className="w-4 h-4 accent-primary rounded cursor-pointer"
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between py-2 border-b border-border/60">
+                        <div>
+                            <span className="text-xs font-mono font-bold text-foreground block">Audio Orderbook Telemetry</span>
+                            <span className="text-xs text-muted-foreground font-sans">
+                                Subtle acoustic feedback when breakout levels are breached
+                            </span>
+                        </div>
+                        <input
+                            type="checkbox"
+                            checked={soundTelemetry}
+                            onChange={(e) => {
+                                setSoundTelemetry(e.target.checked);
+                                toast.info(e.target.checked ? "Audio telemetry enabled" : "Audio telemetry muted");
+                            }}
+                            className="w-4 h-4 accent-primary rounded cursor-pointer"
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between py-2">
+                        <div>
+                            <span className="text-xs font-mono font-bold text-foreground block">Daily EOD Market Briefing</span>
+                            <span className="text-xs text-muted-foreground font-sans">
+                                Evening email digest with NSE/BSE top movers and institutional IPO filings
+                            </span>
+                        </div>
+                        <input
+                            type="checkbox"
+                            checked={emailDigest}
+                            onChange={(e) => {
+                                setEmailDigest(e.target.checked);
+                                toast.info(e.target.checked ? "Daily EOD digest enabled" : "EOD digest paused");
+                            }}
+                            className="w-4 h-4 accent-primary rounded cursor-pointer"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Security & Access Management */}
+            <div className="p-6 rounded-xl border border-border bg-card space-y-4">
+                <div className="flex items-center gap-2.5 pb-3 border-b border-border">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-sm font-bold text-foreground font-display">
+                        Cryptographic Security & Session Credentials
+                    </h3>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-1 font-mono text-xs">
+                    <div>
+                        <span className="font-bold text-foreground block">Password & Authentication Tokens</span>
+                        <span className="text-muted-foreground font-sans">
+                            Manage Supabase authenticated credentials and access keys
+                        </span>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="px-4 py-2 rounded-lg border border-border bg-muted hover:bg-muted/80 text-foreground font-semibold transition-colors cursor-pointer"
+                    >
+                        Request Password Reset
+                    </button>
+                </div>
             </div>
         </div>
     );

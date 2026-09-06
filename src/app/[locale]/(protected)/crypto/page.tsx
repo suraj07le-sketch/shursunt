@@ -1,4 +1,4 @@
-import { getMarketData } from "@/lib/api";
+﻿import { getMarketData } from "@/lib/api";
 import MarketDashboard from "@/components/dashboard/MarketDashboard";
 
 export const dynamic = 'force-dynamic';
@@ -9,9 +9,19 @@ export default async function CryptoPage() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                Crypto Market
-            </h1>
+            <div className="pb-4 border-b border-border">
+                <div className="flex items-center gap-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold font-display tracking-tight text-foreground">
+                        Digital Asset Terminal
+                    </h1>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted border border-border text-muted-foreground font-semibold">
+                        GLOBAL SPOT
+                    </span>
+                </div>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                    Live charts, Binance order books, and real-time liquidity across 1000+ crypto pairs
+                </p>
+            </div>
 
             <MarketDashboard coins={coins} assetType="crypto" />
         </div>

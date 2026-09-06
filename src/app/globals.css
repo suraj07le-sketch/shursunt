@@ -7,6 +7,11 @@
   /* Fluid Spacing & Type (Optional future expansion) */
   --font-display: "Clash Display", sans-serif;
   --font-body: "Inter", sans-serif;
+  /* Font Stack Discipline */
+  --font-display: var(--font-display), "Space Grotesk", system-ui, sans-serif;
+  --font-sans: var(--font-sans), "Outfit", system-ui, sans-serif;
+  --font-body: var(--font-sans), "Outfit", system-ui, sans-serif;
+  --font-mono: var(--font-mono), "JetBrains Mono", monospace;
 
   /* Color System Mappings */
   --color-border: hsl(var(--border));
@@ -89,37 +94,56 @@
 .dark {
   --background: 240 10% 4%;
   /* #09090b - Void */
+  /* #09090b - Void Terminal Base */
   --foreground: 0 0% 98%;
   /* White */
 
   --card: 240 10% 7%;
   /* #101012 */
+  --card: 240 10% 6.5%;
+  /* #101014 */
   --card-foreground: 0 0% 98%;
 
   --popover: 240 10% 7%;
+  --popover: 240 10% 6.5%;
   --popover-foreground: 0 0% 98%;
 
   --primary: 35 100% 55%;
   /* #ff9f1c - Solar Gold/Orange */
+  --primary: 38 92% 50%;
+  /* #f59e0b Brand Amber / CTA */
   --primary-foreground: 0 0% 0%;
 
   --secondary: 240 5% 20%;
   /* #303036 */
   --secondary-foreground: 0 0% 98%;
+  --secondary: 239 84% 67%;
+  /* #6366f1 Electric Indigo (Reserved for AI/Prediction features) */
+  --secondary-foreground: 0 0% 100%;
 
   --muted: 240 5% 15%;
+  --muted: 240 6% 14%;
   --muted-foreground: 240 5% 65%;
 
   --accent: 35 100% 55%;
+  --accent: 38 92% 50%;
   --accent-foreground: 0 0% 0%;
 
   --destructive: 0 85% 60%;
+  --destructive: 348 85% 60%;
   --destructive-foreground: 0 0% 98%;
 
   --border: 240 5% 15%;
   --input: 240 5% 15%;
   --ring: 35 100% 55%;
   /* Gold Ring */
+  --border: 240 6% 16%;
+  --input: 240 6% 16%;
+  --ring: 38 92% 50%;
+
+  /* Semantic Price Direction */
+  --bull: 158 75% 45%;
+  --bear: 348 85% 60%;
 }
 
 /* --- THEME 2: POLARIS (LIGHT / GLASS) --- */
@@ -243,19 +267,32 @@
   html,
   body {
     @apply antialiased transition-colors duration-500 min-h-screen relative overflow-x-hidden;
+    @apply antialiased transition-colors duration-300 min-h-screen relative;
+    overflow-x: clip;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     max-width: 100vw;
   }
 
+  /* Strict Tabular Numbers for Financial Data (Hallmark constraint) */
+  .tabular-nums,
+  [data-tabular="true"] {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Global Accessibility Focus Ring */
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 
   /* Custom Scrollbar for all themes */
+  /* Custom Scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   ::-webkit-scrollbar-track {
@@ -264,6 +301,7 @@
 
   ::-webkit-scrollbar-thumb {
     @apply bg-border rounded-full hover:bg-primary/50 transition-colors;
+    @apply bg-border rounded-full hover:bg-primary/40 transition-colors;
   }
 }
 
@@ -273,15 +311,20 @@
 .glass-card {
   @apply relative overflow-hidden rounded-2xl border bg-card/20 backdrop-blur-2xl transition-all duration-300;
   border-color: hsl(var(--border) / 0.3);
+  @apply relative overflow-hidden rounded-xl border bg-card/40 backdrop-blur-xl transition-colors duration-200;
+  border-color: hsl(var(--border));
 }
 
 .glass-card:hover {
   @apply bg-card/40 border-primary/30 shadow-lg shadow-primary/5 -translate-y-1;
+  @apply bg-card/70 border-primary/40;
 }
 
 /* Text Gradients */
+/* Honest Header Accent (No Gradient Text Slop) */
 .text-gradient {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+  color: hsl(var(--primary));
 }
 
 /* Neon Glow (Only active in Nebula/Neon theme basically, or forces effect) */
@@ -503,4 +546,15 @@
 .transform-gpu {
   transform: translateZ(0);
   backface-visibility: hidden;
+}
+
+/* Webkit Autofill CSS Override to preserve dark-theme input styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: inherit !important;
+  transition: background-color 50000s ease-in-out 0s;
+  box-shadow: inset 0 0 20px 20px rgba(0, 0, 0, 0) !important;
 }

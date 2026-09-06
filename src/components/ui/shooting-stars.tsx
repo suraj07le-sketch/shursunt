@@ -1,16 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import React, { useEffect, useState, useRef } from "react";
-
-interface ShootingStar {
-    id: number;
-    x: number;
-    y: number;
-    angle: number;
-    scale: number;
-    speed: number;
-    distance: number;
-}
+import React, { useEffect, useRef } from "react";
 
 interface ShootingStarsProps {
     minSpeed?: number;
@@ -35,88 +25,97 @@ export const ShootingStars = ({
     starHeight = 1,
     className,
 }: ShootingStarsProps) => {
-    const [star, setStar] = useState<ShootingStar | null>(null);
-    const svgRef = useRef<SVGSVGElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        let animationFrameId: number;
         let timeoutId: NodeJS.Timeout;
 
-        const createStar = () => {
-            const { innerWidth, innerHeight } = window;
-            const x = Math.random() * innerWidth;
-            const y = 0;
-            const angle = Math.random() * 90 + 45; // angle between 45 and 135 degrees
-            const scale = 1 + Math.random();
-            const speed = Math.random() * (maxSpeed - minSpeed) + minSpeed;
-            const distance = 0;
+        let star: {
+            x: number;
+            y: number;
+            angle: number;
+            scale: number;
+            speed: number;
+        } | null = null;
 
-            setStar({ id: Date.now(), x, y, angle, scale, speed, distance });
+        const createStar = () => {
+            const width = canvas.width || window.innerWidth;
+            star = {
+                x: Math.random() * width,
+                y: 0,
+                angle: Math.random() * 90 + 45,
+                scale: 1 + Math.random(),
+                speed: Math.random() * (maxSpeed - minSpeed) + minSpeed,
+            };
 
             const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay;
             timeoutId = setTimeout(createStar, randomDelay);
         };
 
+        const updateSize = () => {
+            const { width, height } = canvas.getBoundingClientRect();
+            const newW = Math.floor(width);
+            const newH = Math.floor(height);
+            if (canvas.width !== newW || canvas.height !== newH) {
+                canvas.width = newW;
+                canvas.height = newH;
+            }
+        };
+
+        updateSize();
         createStar();
 
-        return () => {
-            if (timeoutId) clearTimeout(timeoutId);
-        };
-    }, [minSpeed, maxSpeed, minDelay, maxDelay]);
+        const render = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    useEffect(() => {
-        const moveStar = () => {
-            setStar((prevStar) => {
-                if (!prevStar) return null;
-                const newX =
-                    prevStar.x +
-                    prevStar.speed * Math.cos((prevStar.angle * Math.PI) / 180);
-                const newY =
-                    prevStar.y +
-                    prevStar.speed * Math.sin((prevStar.angle * Math.PI) / 180);
-                const newDistance = prevStar.distance + prevStar.speed;
-                const { innerWidth, innerHeight } = window;
+            if (star) {
+                star.x += star.speed * Math.cos((star.angle * Math.PI) / 180);
+                star.y += star.speed * Math.sin((star.angle * Math.PI) / 180);
 
-                if (newX < -20 || newX > innerWidth + 20 || newY > innerHeight + 20) {
-                    return null;
+                if (star.x < -50 || star.x > canvas.width + 50 || star.y > canvas.height + 50) {
+                    star = null;
+                } else {
+                    ctx.save();
+                    ctx.translate(star.x, star.y);
+                    ctx.rotate((star.angle * Math.PI) / 180);
+
+                    const currentWidth = starWidth * star.scale;
+                    const gradient = ctx.createLinearGradient(-currentWidth, 0, 0, 0);
+                    gradient.addColorStop(0, "rgba(46, 185, 223, 0)");
+                    gradient.addColorStop(1, starColor);
+
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(-currentWidth, 0, currentWidth, starHeight);
+                    ctx.restore();
                 }
+            }
 
-                return {
-                    ...prevStar,
-                    x: newX,
-                    y: newY,
-                    distance: newDistance,
-                };
-            });
-            requestAnimationFrame(moveStar);
+            animationFrameId = requestAnimationFrame(render);
         };
 
-        const animationFrame = requestAnimationFrame(moveStar);
-        return () => cancelAnimationFrame(animationFrame);
-    }, []);
+        render();
+
+        const resizeObserver = new ResizeObserver(updateSize);
+        resizeObserver.observe(canvas);
+
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+            if (timeoutId) clearTimeout(timeoutId);
+            resizeObserver.disconnect();
+        };
+    }, [minSpeed, maxSpeed, minDelay, maxDelay, starColor, trailColor, starWidth, starHeight]);
 
     return (
-        <svg
-            ref={svgRef}
+        <canvas
+            ref={canvasRef}
             className={cn("w-full h-full absolute inset-0 z-0 pointer-events-none", className)}
-        >
-            {star && (
-                <rect
-                    key={star.id}
-                    x={star.x}
-                    y={star.y}
-                    width={starWidth * star.scale}
-                    height={starHeight}
-                    fill="url(#gradient)"
-                    transform={`rotate(${star.angle}, ${star.x + (starWidth * star.scale) / 2
-                        }, ${star.y + starHeight / 2})`}
-                />
-            )}
-            <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" style={{ stopColor: trailColor, stopOpacity: 0 }} />
-                    <stop offset="100%" style={{ stopColor: starColor, stopOpacity: 1 }} />
-                </linearGradient>
-            </defs>
-        </svg>
+        />
     );
 };

@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/formatUtils";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface CoinCardProps {
     coin: Coin;
@@ -26,6 +27,8 @@ export default function CoinCard({ coin }: CoinCardProps) {
 
     const router = useRouter(); // Import useRouter
 
+    const queryClient = useQueryClient();
+
     const addToWatchlist = async (e: React.MouseEvent) => {
         e.stopPropagation();
 
@@ -39,21 +42,27 @@ export default function CoinCard({ coin }: CoinCardProps) {
         setLoading(true);
 
         try {
+            const assetType = coin.asset_type || 'crypto';
             const { error } = await supabase
                 .from("watchlist")
-                .insert({ user_id: user.id, coin_id: coin.id, coin_data: coin } as any);
+                .insert({
+                    user_id: user.id,
+                    coin_id: coin.id,
+                    coin_data: coin,
+                    asset_type: assetType
+                } as any);
 
             if (error) {
                 if (error.code === '23505') {
-                    // Unique violation - already added
                     import('sonner').then(({ toast }) => toast.error("Already in watchlist!"));
-                }
-                else {
+                } else {
                     console.error(error);
                     import('sonner').then(({ toast }) => toast.error("Failed to add to watchlist"));
                 }
             } else {
                 import('sonner').then(({ toast }) => toast.success("Added to watchlist!"));
+                queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+                queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             }
         } catch (err) {
             console.error(err);

@@ -78,7 +78,7 @@ export function IPOList({ data }: IPOListProps) {
             </div>
 
             {/* Grid or Grouped Sections */}
-            {filter === "all" && currentPage === 1 ? (
+            {filter === "all" && currentPage === 1 && sections.length > 0 ? (
                 <div className="space-y-16">
                     {sections.map((section) => (
                         <div key={section.id} className="space-y-6">
@@ -116,7 +116,7 @@ export function IPOList({ data }: IPOListProps) {
 
             {filtered.length === 0 && (
                 <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
-                    <p className="text-muted-foreground font-medium">No IPOs found matching your criteria.</p>
+                    <p className="text-muted-foreground font-medium">No IPOs available right now.</p>
                 </div>
             )}
 

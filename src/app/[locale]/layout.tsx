@@ -1,60 +1,56 @@
-import type { Metadata } from 'next'
-import { Outfit } from 'next/font/google'
-import '@/app/globals.css' // Adjusted import path
-import "crypto-icons/font.css"
-import "crypto-icons/styles.css"
-import { AuthProvider } from '@/context/AuthContext'
-import { ThemeProvider } from '@/components/layout/ThemeProvider'
-import { Toaster } from 'sonner'
-import NextTopLoader from 'nextjs-toploader';
-import { StarsBackground } from "@/components/ui/stars-background";
-import { ShootingStars } from "@/components/ui/shooting-stars";
+﻿import type { Metadata, Viewport } from "next";
+import { Space_Grotesk, Outfit, JetBrains_Mono } from "next/font/google";
+import "@/app/globals.css";
+import "crypto-icons/font.css";
+import "crypto-icons/styles.css";
+import { ThemeProvider } from "@/components/layout/ThemeProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
+import { AuthProvider } from "@/context/AuthContext";
+import { Toaster } from "sonner";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
+import NextTopLoader from 'nextjs-toploader';
 import { GlobalErrorSuppressor } from "@/components/ui/GlobalErrorSuppressor";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import JsonLd from '@/components/seo/JsonLd';
-import { QueryProvider } from '@/components/providers/QueryProvider';
+
+const spaceGrotesk = Space_Grotesk({
+    subsets: ["latin"],
+    variable: "--font-display",
+    display: "swap",
+});
 
 const outfit = Outfit({
-    subsets: ['latin'],
-    variable: '--font-outfit',
-})
+    subsets: ["latin"],
+    variable: "--font-sans",
+    display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+    subsets: ["latin"],
+    variable: "--font-mono",
+    display: "swap",
+});
+
+export const viewport: Viewport = {
+    themeColor: "#09090b",
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+};
 
 export const metadata: Metadata = {
     title: {
-        default: 'ShursunT AI | Advanced Crypto Analytics & Trading Signals',
-        template: '%s | ShursunT AI'
+        template: '%s | ShursunT AI',
+        default: 'ShursunT AI - Institutional Stock & Crypto Intelligence',
     },
-    description: 'Maximize your crypto trading ROI with ShursunT AI. Real-time price predictions, market sentiment analysis, and 90% accurate AI trading indicators for Bitcoin, Ethereum, and Solana.',
-    keywords: ['AI crypto signals', 'crypto price prediction', 'trading indicators', 'crypto analytics', 'bitcoin prediction', 'ethereum sentiment', 'AI trading bot'],
-    authors: [{ name: 'ShursunT Team', url: 'https://shursunt.com' }],
-    creator: 'ShursunT Inc.',
-    openGraph: {
-        type: 'website',
-        locale: 'en_US',
-        url: 'https://shursunt.com',
-        title: 'ShursunT AI | Advanced Crypto Analytics & Trading Signals',
-        description: 'Maximize your crypto trading ROI with ShursunT AI. Real-time price predictions, market sentiment analysis, and 90% accurate AI trading indicators.',
-        siteName: 'ShursunT AI',
-        images: [
-            {
-                url: 'https://shursunt.com/og-image.png',
-                width: 1200,
-                height: 630,
-                alt: 'ShursunT AI Dashboard',
-            },
-        ],
-    },
-    twitter: {
-        card: 'summary_large_image',
-        title: 'ShursunT AI | Advanced Crypto Analytics & Trading Signals',
-        description: 'Maximize your crypto trading ROI with ShursunT AI. Real-time price predictions and market sentiment analysis.',
-        images: ['https://shursunt.com/twitter-image.png'],
-        creator: '@shursunt_ai',
-    },
+    description: "Algorithmic market intelligence platform providing AI-powered price predictions, confluence setups, and real-time execution analytics across 500+ Indian equities and 1000+ crypto pairs.",
+    keywords: ["Indian Stocks", "Crypto Predictions", "NSE", "BSE", "AI Trading", "Market Screener", "ShursunT"],
+    authors: [{ name: "ShursunT AI" }],
+    creator: "ShursunT AI",
+    publisher: "ShursunT AI",
     robots: {
         index: true,
         follow: true,
@@ -66,76 +62,67 @@ export const metadata: Metadata = {
             'max-snippet': -1,
         },
     },
-}
-
-export function generateStaticParams() {
-    return routing.locales.map((locale) => ({ locale }));
-}
+};
 
 export default async function LocaleLayout({
     children,
-    params
+    params,
 }: {
     children: React.ReactNode;
-    params: any;
+    params: Promise<{ locale: string }>;
 }) {
     const { locale } = await params;
 
-    // Ensure that the incoming `locale` is valid
     if (!routing.locales.includes(locale as any)) {
         notFound();
     }
 
-    // Provide all messages to the client
-    // side is the easiest way to get started
     const messages = await getMessages();
 
     return (
-        <html lang={locale} suppressHydrationWarning>
-            <head>
-                <link rel="manifest" href="/manifest.json" />
-                <meta name="theme-color" content="#09090b" />
-                <meta name="mobile-web-app-capable" content="yes" />
-                <meta name="apple-mobile-web-app-capable" content="yes" />
-                <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-                <meta name="apple-mobile-web-app-title" content="ShursunT" />
-                <link rel="apple-touch-icon" href="/favicon.ico" />
-            </head>
-            <body className={`${outfit.className} antialiased`} suppressHydrationWarning>
+        <html
+            lang={locale}
+            suppressHydrationWarning
+            className={`${spaceGrotesk.variable} ${outfit.variable} ${jetbrainsMono.variable}`}
+        >
+            <body
+                suppressHydrationWarning
+                className="font-sans antialiased min-h-screen bg-background text-foreground selection:bg-primary/20 selection:text-primary overflow-x-clip"
+            >
                 <JsonLd />
-                <NextIntlClientProvider messages={messages}>
-                    <NextTopLoader
-                        color="hsl(var(--primary))"
-                        initialPosition={0.08}
-                        showSpinner={false}
-                        speed={200}
-                        shadow="0 0 10px hsl(var(--primary)),0 0 5px hsl(var(--primary))"
-                    />
-
-                    <div className="fixed inset-0 z-[-1] pointer-events-none">
-                        <StarsBackground starDensity={0.0002} allStarsTwinkle={true} minStarSize={0.5} maxStarSize={1.0} className="opacity-100" />
-                        <ShootingStars minDelay={3000} maxDelay={6000} />
-                    </div>
-
-
-
-                    <ThemeProvider
-                        attribute="class"
-                        defaultTheme="dark"
-                        themes={['light', 'dark', 'neon', 'cyber']}
-                        enableSystem
-                        disableTransitionOnChange
-                    >
-                        <GlobalErrorSuppressor />
-                        <ServiceWorkerRegistration />
+                <GlobalErrorSuppressor />
+                <ServiceWorkerRegistration />
+                <NextTopLoader
+                    color="#f59e0b"
+                    initialPosition={0.08}
+                    crawlSpeed={200}
+                    height={2}
+                    crawl={true}
+                    showSpinner={false}
+                    easing="ease"
+                    speed={200}
+                    shadow="0 0 10px #f59e0b,0 0 5px #f59e0b"
+                />
+                <ThemeProvider
+                    attribute="class"
+                    defaultTheme="dark"
+                    enableSystem={false}
+                    disableTransitionOnChange
+                >
+                    <NextIntlClientProvider messages={messages}>
                         <QueryProvider>
                             <AuthProvider>
                                 {children}
-                                <Toaster richColors position="bottom-right" theme="system" />
+                                <Toaster
+                                    richColors
+                                    closeButton
+                                    position="bottom-right"
+                                    theme="dark"
+                                />
                             </AuthProvider>
                         </QueryProvider>
-                    </ThemeProvider>
-                </NextIntlClientProvider>
+                    </NextIntlClientProvider>
+                </ThemeProvider>
             </body>
         </html>
     );
