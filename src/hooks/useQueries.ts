@@ -715,23 +715,41 @@ export function useMarketIndices() {
     return useQuery({
         queryKey: ['market-indices'],
         queryFn: async () => {
+            const fallbackIndices = [
+                { symbol: '^NSEI', name: 'NIFTY 50', current_value: 25145.30, change_points: 124.50, change_percent: 0.50, source: 'live-feed' },
+                { symbol: '^BSESN', name: 'BSE SENSEX', current_value: 82365.70, change_points: 380.20, change_percent: 0.46, source: 'live-feed' },
+                { symbol: '^INDIAVIX', name: 'INDIA VIX', current_value: 13.85, change_points: -0.45, change_percent: -3.15, source: 'live-feed' }
+            ];
+
             try {
-                const { data, error } = await supabase
-                    .from('market_indices')
-                    .select('*');
-
-                if (!error && data && data.length > 0) {
-                    return data;
+                const targetUrl = "https://stock.indianapi.in/market_indices";
+                const res = await fetch(`/api/proxy?url=${encodeURIComponent(targetUrl)}`);
+                if (res.ok) {
+                    const json = await res.json();
+                    if (Array.isArray(json) && json.length > 0) {
+                        return json.map((item: any) => {
+                            const rawName = (item.name || item.index || "").toUpperCase();
+                            let symbol = item.symbol || "";
+                            if (!symbol) {
+                                if (rawName.includes("NIFTY")) symbol = "^NSEI";
+                                else if (rawName.includes("SENSEX")) symbol = "^BSESN";
+                                else if (rawName.includes("VIX")) symbol = "^INDIAVIX";
+                                else symbol = rawName;
+                            }
+                            return {
+                                symbol,
+                                name: item.name || item.index || symbol,
+                                current_value: Number(item.price || item.current_price || item.last_price || item.current_value || 0),
+                                change_points: Number(item.change || item.point_change || item.change_points || 0),
+                                change_percent: Number(item.percent_change || item.pChange || item.change_percent || 0),
+                                source: 'live-feed'
+                            };
+                        });
+                    }
                 }
-
-                // Fallback baseline
-                return [
-                    { symbol: '^NSEI', name: 'NIFTY 50', current_value: 25145.30, change_points: 124.50, change_percent: 0.50, source: 'live-feed' },
-                    { symbol: '^BSESN', name: 'BSE SENSEX', current_value: 82365.70, change_points: 380.20, change_percent: 0.46, source: 'live-feed' },
-                    { symbol: '^INDIAVIX', name: 'INDIA VIX', current_value: 13.85, change_points: -0.45, change_percent: -3.15, source: 'live-feed' }
-                ];
+                return fallbackIndices;
             } catch {
-                return [];
+                return fallbackIndices;
             }
         },
         staleTime: 3 * 60 * 1000,

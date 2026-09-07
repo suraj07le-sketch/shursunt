@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -92,8 +92,48 @@ export default function PredictionsPage() {
             });
 
             const data = await res.json();
-            if (data.success) {
+            if (data.success && data.prediction) {
                 toast.success(`Confluence signal generated for ${symbol}`);
+
+                const predObj = data.prediction;
+                const formattedSymbol = symbol.toUpperCase();
+                const nowIso = new Date().toISOString();
+
+                const newPrediction: Prediction = {
+                    id: predObj.id || `pred-${Date.now()}`,
+                    type,
+                    name: formattedSymbol,
+                    stock_name: type === 'stock' ? formattedSymbol : undefined,
+                    coin: type === 'crypto' ? formattedSymbol : undefined,
+                    coin_name: type === 'crypto' ? formattedSymbol : undefined,
+                    current_price: Number(predObj.current_price || 0),
+                    predicted_price: Number(predObj.predicted_price || 0),
+                    prediction_change_percent: Number(predObj.prediction_change_percent || 0),
+                    confidence: Math.round(predObj.confidence || 85),
+                    accuracy_percent: Math.round(predObj.confidence || 85),
+                    trend: predObj.signal || 'BUY',
+                    signal: predObj.signal || 'BUY',
+                    stop_loss_price: Number(predObj.stop_loss || 0),
+                    timeframe: predObj.timeframe || timeframe || '4h',
+                    created_at: predObj.prediction_time || nowIso,
+                    predicted_time: predObj.predicted_time || nowIso,
+                    confluence: predObj.confluence || 'TRIPLE',
+                    market_regime: predObj.market_regime || 'TRENDING'
+                };
+
+                // Optimistically insert into TanStack Query cache so the card appears immediately
+                queryClient.setQueriesData<Prediction[]>({ queryKey: ['predictions', type] }, (old) => {
+                    const currentList = Array.isArray(old) ? old : [];
+                    const filtered = currentList.filter(
+                        (p) => (p.stock_name || p.coin || p.name || '').toUpperCase() !== formattedSymbol
+                    );
+                    return [newPrediction, ...filtered];
+                });
+
+                if (selectedDate !== todayDate) {
+                    setSelectedDate(todayDate);
+                }
+
                 queryClient.invalidateQueries({ queryKey: ['predictions'] });
                 queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             } else {

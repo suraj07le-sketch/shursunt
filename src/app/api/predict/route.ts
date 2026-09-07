@@ -839,41 +839,63 @@ export async function POST(req: Request) {
         const result = await generatePrediction(assetName, assetType, timeframe || '4h', currentPrice);
         if (!result.success) return NextResponse.json({ success: false, error: result.error }, { status: 500 });
 
-        // --- BACKGROUND STORAGE (Non-blocking) ---
-        (async () => {
-            try {
-                const predictionsTable = assetType === 'crypto' ? 'crypto_predictions' : 'stock_predictions';
-                const predictionData: any = {
-                    user_id: user.id,
-                    timeframe: result.timeframe,
-                    current_price: result.current_price,
-                    predicted_price: result.predicted_price,
-                    prediction_change_percent: result.prediction_change_percent,
-                    stop_loss_price: result.stop_loss,
-                    prediction_valid_till_ist: result.predicted_time,
-                    created_at: result.prediction_time
-                };
-
-                if (assetType === 'stock') {
-                    predictionData.stock_name = assetName;
-                    predictionData.signal = result.signal;
-                    predictionData.accuracy_percent = Math.round(result.confidence);
-                    predictionData.prediction_time_ist = result.prediction_time;
-                } else {
-                    predictionData.coin = assetName;
-                    predictionData.trend = result.signal;
-                    predictionData.confidence = Math.round(result.confidence);
-                    predictionData.predicted_time_ist = result.prediction_time;
-                    predictionData.model = 'pro-engine-v2.0';
-                }
-
-                const { error: insErr } = await supabase.from(predictionsTable).insert(predictionData);
-                if (insErr) console.error('[API] Storage failed:', insErr);
-                else console.log(`[API] Saved prediction for ${assetName} to background storage.`);
-            } catch (err) {
-                console.error('[API] Background storage error:', err);
+        // --- PERSIST PREDICTION TO DATABASE ---
+        try {
+            const predictionsTable = assetType === 'crypto' ? 'crypto_predictions' : 'stock_predictions';
+            
+            // Use service role if available to bypass RLS edge cases, otherwise authenticated client
+            let dbClient = supabase;
+            if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+                const { createClient } = await import('@supabase/supabase-js');
+                dbClient = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY);
             }
-        })();
+
+            const nowIso = new Date().toISOString();
+            const predictionData: any = {
+                user_id: user.id,
+                timeframe: result.timeframe || '4h',
+                current_price: result.current_price,
+                predicted_price: result.predicted_price,
+                prediction_change_percent: result.prediction_change_percent,
+                created_at: nowIso
+            };
+
+            if (assetType === 'stock') {
+                predictionData.stock_name = assetName.toUpperCase();
+                predictionData.signal = result.signal;
+                predictionData.trend = result.signal;
+                predictionData.confidence = Math.round(result.confidence);
+                predictionData.accuracy_percent = Math.round(result.confidence);
+                predictionData.stop_loss_price = result.stop_loss;
+                predictionData.prediction_time_ist = result.prediction_time || nowIso;
+                predictionData.model = 'v4-elite-ensemble-lstm';
+                predictionData.status = 'completed';
+            } else {
+                predictionData.coin = assetName.toUpperCase();
+                predictionData.coin_id = assetName.toLowerCase();
+                predictionData.trend = result.signal;
+                predictionData.confidence = Math.round(result.confidence);
+                predictionData.stop_loss = result.stop_loss;
+                predictionData.predicted_time_ist = result.predicted_time || result.prediction_time || nowIso;
+                predictionData.model_used = 'pro-engine-v3.0';
+                predictionData.status = 'completed';
+            }
+
+            const { data: insertedRow, error: insErr } = await dbClient
+                .from(predictionsTable)
+                .insert(predictionData)
+                .select('id')
+                .single();
+
+            if (insErr) {
+                console.error(`[API] Storage failed for ${assetName} (${predictionsTable}):`, insErr.message || insErr);
+            } else if (insertedRow?.id) {
+                (result as any).id = insertedRow.id;
+                console.log(`[API] Persisted prediction ${insertedRow.id} for ${assetName} to ${predictionsTable}.`);
+            }
+        } catch (storageErr: any) {
+            console.error('[API] Storage exception:', storageErr.message || storageErr);
+        }
 
         return NextResponse.json({ success: true, prediction: result });
     } catch (e: any) {
