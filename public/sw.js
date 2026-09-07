@@ -56,9 +56,22 @@ self.addEventListener('fetch', (event) => {
                 }
                 return response;
             })
-            .catch(() => {
+            .catch(async () => {
                 // Return cached version on network failure
-                return caches.match(event.request);
+                const cached = await caches.match(event.request);
+                if (cached) return cached;
+
+                // If navigation request, fallback to cached root
+                if (event.request.mode === 'navigate') {
+                    const rootCached = await caches.match('/');
+                    if (rootCached) return rootCached;
+                }
+
+                return new Response('Network offline or resource unavailable', {
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    headers: { 'Content-Type': 'text/plain' }
+                });
             })
     );
 });

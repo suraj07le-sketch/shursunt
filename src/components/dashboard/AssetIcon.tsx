@@ -20,17 +20,18 @@ export default function AssetIcon({ asset, size = 32, type, className, container
     const [imageError, setImageError] = useState(false);
 
     // Determine the effective asset type
-    const effectiveType = type || asset.asset_type || 'crypto';
+    const effectiveType = type || asset?.asset_type || 'crypto';
+    const sym = asset?.symbol ? String(asset.symbol) : '';
 
     // Define fallback sources based on type
     const secondarySources = effectiveType === 'crypto'
         ? [
-            `https://assets.coincap.io/assets/icons/${asset.symbol.toLowerCase()}@2x.png`,
-            `https://static.crypto.com/token/icons/${asset.symbol.toLowerCase()}/color_icon.png`
+            `https://assets.coincap.io/assets/icons/${sym.toLowerCase()}@2x.png`,
+            `https://static.crypto.com/token/icons/${sym.toLowerCase()}/color_icon.png`
         ]
         : [
-            `https://financialmodelingprep.com/image-stock/${asset.symbol.toUpperCase()}.png`,
-            `https://logos.tradier.com/console/logos/${asset.symbol.toUpperCase()}.png`
+            `https://financialmodelingprep.com/image-stock/${sym.toUpperCase()}.png`,
+            `https://logos.tradier.com/console/logos/${sym.toUpperCase()}.png`
         ];
 
     const logoUrl = sourceIndex === 0

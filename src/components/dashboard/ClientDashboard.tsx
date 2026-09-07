@@ -52,8 +52,10 @@ export default function ClientDashboard({ initialData }: { initialData: Coin[] }
     const { stats, topWatchlist } = data;
     const totalWatchlist = (stats.stockCount || 0) + (stats.cryptoCount || 0);
 
-    const getPriceData = (coinId: string, symbol: string) => {
-        return initialData.find(c => c.id === coinId || c.symbol.toLowerCase() === symbol.toLowerCase()) || null;
+    const getPriceData = (coinId?: string, symbol?: string) => {
+        if (!coinId && !symbol) return null;
+        const sLower = symbol?.toLowerCase();
+        return initialData.find(c => (coinId && c.id === coinId) || (sLower && c.symbol?.toLowerCase() === sLower)) || null;
     };
 
     return (
@@ -212,29 +214,34 @@ export default function ClientDashboard({ initialData }: { initialData: Coin[] }
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         {topWatchlist.slice(0, 4).map((item) => {
-                            const priceInfo = getPriceData(item.coin_id, item.symbol);
-                            const price = priceInfo?.current_price ?? item.last_price ?? 0;
-                            const change = priceInfo?.price_change_percentage_24h ?? item.change_percent ?? 0;
+                            const rawCoin = item.coin_data || item;
+                            const rawSym = rawCoin.symbol || item.symbol || item.coin_id || "";
+                            const symbol = rawSym ? String(rawSym).toUpperCase() : "ASSET";
+                            const name = rawCoin.name || item.name || symbol;
+                            const assetType = (item.asset_type || rawCoin.asset_type || 'crypto') as 'stock' | 'crypto';
+                            const priceInfo = getPriceData(item.coin_id || rawCoin.id, symbol);
+                            const price = priceInfo?.current_price ?? rawCoin.current_price ?? item.last_price ?? 0;
+                            const change = priceInfo?.price_change_percentage_24h ?? rawCoin.price_change_percentage_24h ?? item.change_percent ?? 0;
                             const isPositive = change >= 0;
 
                             return (
-                                <div key={item.id || item.symbol} className="p-3 rounded-lg border border-border bg-background flex flex-col justify-between">
+                                <div key={item.id || item.coin_id || symbol} className="p-3 rounded-lg border border-border bg-background flex flex-col justify-between">
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                             <AssetIcon
                                                 asset={{
-                                                    id: item.coin_id || item.symbol,
-                                                    symbol: item.symbol,
-                                                    name: item.name || item.symbol,
-                                                    image: item.image,
-                                                    asset_type: item.asset_type as any
+                                                    id: item.coin_id || rawCoin.id || symbol,
+                                                    symbol: symbol,
+                                                    name: name,
+                                                    image: rawCoin.image || item.image,
+                                                    asset_type: assetType
                                                 } as any}
                                                 size={28}
-                                                type={item.asset_type as any}
+                                                type={assetType}
                                             />
                                             <div>
-                                                <div className="font-mono font-bold text-xs text-foreground">{item.symbol.toUpperCase()}</div>
-                                                <div className="text-[10px] text-muted-foreground uppercase">{item.asset_type}</div>
+                                                <div className="font-mono font-bold text-xs text-foreground">{symbol}</div>
+                                                <div className="text-[10px] text-muted-foreground uppercase">{assetType}</div>
                                             </div>
                                         </div>
                                         <div className={`text-xs font-mono font-semibold tabular-nums ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
@@ -244,7 +251,7 @@ export default function ClientDashboard({ initialData }: { initialData: Coin[] }
                                     <div className="mt-3 pt-2 border-t border-border/40 flex items-center justify-between">
                                         <span className="text-[10px] font-mono text-muted-foreground">Price</span>
                                         <span className="font-mono text-xs font-bold text-foreground tabular-nums">
-                                            {item.asset_type === 'stock'
+                                            {assetType === 'stock'
                                                 ? `₹${Number(price).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
                                                 : `$${Number(price).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
                                         </span>

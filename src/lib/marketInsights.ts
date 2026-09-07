@@ -48,6 +48,14 @@ export const fetchTrendingStocks = async () => {
     } catch (err: any) {
         if (err.message === "429") {
             console.warn("[MarketInsights] Rate Limit (429) hit for Trending. Backing off...");
+            const cached = typeof window !== 'undefined' ? localStorage.getItem(CACHE_KEY) : null;
+            if (cached) {
+                try {
+                    return JSON.parse(cached).data || [];
+                } catch {
+                    // Ignore parse error
+                }
+            }
         } else {
             console.warn("[MarketInsights] Trending fetch failed", err);
         }
