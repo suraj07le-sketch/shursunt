@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
@@ -112,7 +112,7 @@ export default function AuthForm({ mode = "login" }: { mode?: "login" | "signup"
                 router.push("/dashboard");
             } else {
                 if (passwordStrength < passwordRequirements.length) {
-                    toast.error("Please satisfy all password security requirements.");
+                    toast.error("Please ensure your password meets all requirements");
                     setLoading(false);
                     return;
                 }
@@ -346,42 +346,46 @@ export default function AuthForm({ mode = "login" }: { mode?: "login" | "signup"
                 </div>
             )}
 
-            <form onSubmit={handleAuth} className="space-y-4">
+            <form onSubmit={handleAuth} noValidate className="space-y-4">
                 {!isLogin && (
                     <div className="space-y-1.5">
-                        <label className="text-xs font-mono text-muted-foreground font-medium flex items-center gap-1.5">
+                        <label htmlFor="username" className="text-xs font-mono text-muted-foreground font-medium flex items-center gap-1.5">
                             <User className="w-3.5 h-3.5" />
                             <span>FULL NAME / HANDLE</span>
                         </label>
                         <input
+                            id="username"
+                            name="username"
                             type="text"
                             required
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             placeholder="e.g. S. Sharma"
-                            className="w-full px-3.5 py-2.5 rounded-lg bg-muted/40 border border-border text-foreground font-mono text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all placeholder:text-muted-foreground/60"
+                            className="w-full px-3.5 py-2.5 rounded-lg bg-muted/40 border border-border text-foreground font-mono text-xs focus:ring-2 focus:ring-primary focus:border-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all placeholder:text-muted-foreground/60"
                         />
                     </div>
                 )}
 
                 <div className="space-y-1.5">
-                    <label className="text-xs font-mono text-muted-foreground font-medium flex items-center gap-1.5">
+                    <label htmlFor="email" className="text-xs font-mono text-muted-foreground font-medium flex items-center gap-1.5">
                         <Mail className="w-3.5 h-3.5" />
                         <span>WORK OR PERSONAL EMAIL</span>
                     </label>
                     <input
+                        id="email"
+                        name="email"
                         type="email"
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@domain.com"
-                        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/40 border border-border text-foreground font-mono text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all placeholder:text-muted-foreground/60"
+                        className="w-full px-3.5 py-2.5 rounded-lg bg-muted/40 border border-border text-foreground font-mono text-xs focus:ring-2 focus:ring-primary focus:border-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all placeholder:text-muted-foreground/60"
                     />
                 </div>
 
                 <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                        <label className="text-xs font-mono text-muted-foreground font-medium flex items-center gap-1.5">
+                        <label htmlFor="password" className="text-xs font-mono text-muted-foreground font-medium flex items-center gap-1.5">
                             <Lock className="w-3.5 h-3.5" />
                             <span>PASSWORD</span>
                         </label>
@@ -393,12 +397,14 @@ export default function AuthForm({ mode = "login" }: { mode?: "login" | "signup"
                     </div>
                     <div className="relative">
                         <input
+                            id="password"
+                            name="password"
                             type={showPassword ? "text" : "password"}
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••••••"
-                            className="w-full px-3.5 py-2.5 rounded-lg bg-muted/40 border border-border text-foreground font-mono text-xs focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all placeholder:text-muted-foreground/60 pr-10"
+                            className="w-full px-3.5 py-2.5 rounded-lg bg-muted/40 border border-border text-foreground font-mono text-xs focus:ring-2 focus:ring-primary focus:border-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary outline-none transition-all placeholder:text-muted-foreground/60 pr-10"
                         />
                         <button
                             type="button"

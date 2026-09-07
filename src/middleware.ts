@@ -60,8 +60,12 @@ export async function middleware(request: NextRequest) {
                 url.pathname = path.replace(/\/login|\/signup/, '/dashboard');
                 return NextResponse.redirect(url)
             }
-        } catch (err) {
-            console.error('Middleware Auth Error (Supabase likely unreachable):', err);
+        } catch (err: any) {
+            // Normal unauthenticated state in Supabase throws AuthSessionMissingError when no cookie exists
+            const isExpectedMissingSession = err?.name === 'AuthSessionMissingError' || err?.message?.includes('Auth session missing');
+            if (!isExpectedMissingSession) {
+                console.error('Middleware Auth Error (Supabase likely unreachable):', err);
+            }
             // If it's a protected route, we still need to redirect if it fails
             if (isProtected) {
                 const url = request.nextUrl.clone()
